@@ -1,0 +1,474 @@
+*vital-argument-parser.txt*	A high functional argument parser
+
+Version: 0.1.0
+Author:  Alisue <lambdalisue@hashnote.net>	*Vital.ArgumentParser-author*
+Support: Vim 7.3 and above
+License: MIT license  {{{
+	Copyright (c) 2014 Alisue, hashnote.net
+
+	Permission is hereby granted, free of charge, to any person obtaining
+	a copy of this software and associated documentation files
+	(the "Software"), to deal in the Software without restriction,
+	including without limitation the rights to use, copy, modify, merge,
+	publish, distribute, sublicense, and/or sell copies of the Software,
+	and to permit persons to whom the Software is furnished to do so,
+	subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be
+	included in all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+	EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+	MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+	IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+	CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+}}}
+
+
+==============================================================================
+CONTENTS				*Vital.ArgumentParser-contents*
+
+Introductions		|Vital.ArgumentParser-introductions|
+Usage			|Vital.ArgumentParser-usage|
+Functions		|Vital.ArgumentParser-functions|
+Objects			|Vital.ArgumentParser-objects|
+	Parser		|Vital.ArgumentParser-Parser|
+Validation		|Vital.ArgumentParser-validation|
+Hooks			|Vital.ArgumentParser-hooks|
+
+==============================================================================
+INTRODUCTIONS				*Vital.ArgumentParser-introductions*
+
+*Vital.ArgumentParser* is a high functional argument (option) parser.
+There is a |Vital.OptionParser| but this parser is much flexible while:
+
+1. Argument can be defined as a required argument. Validation will fail if not
+   all required arguments are specified.
+2. Argument behavior can be regulated with 'kind' option.
+   |Vital.ArgumentParser-kinds-switch| does not take any value,
+   |Vital.ArgumentParser-kinds-value| reqiure a value,
+   |Vital.ArgumentParser-kinds-any| can be used as a switch or value, and
+   |Vital.ArgumentParser-kinds-choice| require a value listed in 'choices'
+   option
+3. When more than two conflicted arguments are specified, it will tell the
+   user that these arguments are conflicted and cannot be used in the same
+   time (See |Vital.ArgumentParser-conflict_with|)
+4. Arguments can be defined as subordinations. The subordination arguments
+   cannot be specified without parents (See
+   |Vital.ArgumentParser-subordination_of|)
+5. Arguments can depend on several other arguments. The argument cannot be
+   specified while all dependencies are resolved (See
+   |Vital.ArgumentParser-depend_on|)
+6. There are several validations and you can control which validations should
+   be performed (See |Vital.ArgumentParser-validation|)
+7. There are several hooks to manipulate the arguments in each steps (See
+   |Vital.ArgumentParser-hooks|)
+
+
+==============================================================================
+USAGE					*Vital.ArgumentParser-usage*
+
+Create a new instance of a parser with |Vital.ArgumentParser.new()| function.
+Then define arguments with |Vital.ArgumentParser.add_argument()|. If you need,
+you can define hooks (|Vital.ArgumentParser-hooks|) in this time.
+This library's interface is inspired by ArgumentParser in Python.
+>
+	let s:V = vital#of('vital')
+	let s:P = s:V.import('ArgumentParser')
+	let s:parser = s:P.new()
+
+	call s:parser.add_argument('--foo', 'description of the argument')
+	call s:parser.add_argument('--bar', 'description of the argument', {
+		\ 'kind': s:parser.kinds.switch,
+		\})
+	call s:parser.add_argument('--hoge', '-h',
+		\ 'description of the argument', {
+		\ 'choices': ['a', 'b', 'c'],
+		\})
+	call s:parser.add_argument('--piyo', '-p',
+		\ 'description of the argument', {
+		\ 'required': 1,
+		\})
+	call s:parser.add_argument('--ahya', '-a',
+		\ 'description of the argument', {
+		\ 'default': 'AHYA',
+		\})
+
+	" conflict_with, subordination_of
+	call s:parser.add_argument('--add',
+		\ 'a command to add something', {
+		\ 'conflict_with': 'command',
+		\})
+	call s:parser.add_argument('--change',
+		\ 'a command to change something', {
+		\ 'conflict_with': 'command',
+		\})
+	call s:parser.add_argument('--delete',
+		\ 'a command to delete something', {
+		\ 'conflict_with': 'command',
+		\})
+
+	call s:parser.add_argument('--private',
+		\ 'a visibility flag of command', {
+		\ 'conflict_with': 'visibility',
+		\ 'subordination_of': ['add', 'change', 'delete'],
+		\})
+	call s:parser.add_argument('--public',
+		\ 'a visibility flag of command', {
+		\ 'conflict_with': 'visibility',
+		\ 'subordination_of': ['add', 'change', 'delete'],
+		\})
+
+	" sample function
+	function! Command(...)
+	  echo call(s:parser.parse, a:000, s:parser)
+	endfunction
+
+	function! Complete(...)
+	  return call(s:parser.complete, a:000, s:parser)
+	endfunction
+
+	" sample command
+	command! -nargs=? -range=% -bang
+		\ -complete=customlist,Complete Hoge
+		\ :call Command(<q-bang>, [<line1>, <line2>], <f-args>)
+
+	Hoge! --foo --bar --hoge a --piyo Hi
+	" => {
+	"	'__bang__': 1,
+	"	'__range__': [1, 56],
+	"	'__args__': ['foo', 'bar', 'hoge', 'piyo'],
+	"	'__unknown__': [],
+	"	'foo': 1,
+	"	'bar': 1,
+	"	'hoge': 'a',
+	"	'piyo': 'Hi',
+	" }
+<
+This paresr automatically add '--help' argument to show a help like:
+>
+	Arguments:
+	--foo            description of the argument
+			(kind: SWITCH)
+
+	-h, --help           show this help message
+			(kind: SWITCH)
+
+	-a, --ahya           description of the argument
+			(kind: SWITCH)
+
+	--private        a visibility flag of command
+			(kind: SWITCH)
+			(conflict_with: visibility)
+			(subordination_of: add, change, delete)
+
+	-h, --hoge {choice}  description of the argument
+			(kind: CHOICE)
+			({choice}: a, b, c)
+
+	--bar            description of the argument
+			(kind: SWITCH)
+
+	--change         a command to change something
+			(kind: SWITCH)
+			(conflict_with: command)
+
+	--delete         a command to delete something
+			(kind: SWITCH)
+			(conflict_with: command)
+
+	--add            a command to add something
+			(kind: SWITCH)
+			(conflict_with: command)
+
+	-p, --piyo           description of the argument
+			(kind: SWITCH)
+			(required)
+
+	--public         a visibility flag of command
+			(kind: SWITCH)
+			(conflict_with: visibility)
+			(subordination_of: add, change, delete)
+<
+
+==============================================================================
+FUNCTIONS				*Vital.ArgumentParser-functions*
+
+new([{settings}])			*Vital.ArgumentParser.new()*
+	
+	Make an argument instance. It return |Dictionary| which is like an
+	object in OOP. {settings} is a |Dictionary| to configure the parser
+	instance.
+
+	{settings}
+	
+		'name'
+		A name of the parser. Used in help.
+
+		'auto_help'
+		1 to create help argument automatically. Default is 1
+
+		'validate_conflict_groups'
+		Validate conflict groups. Default is 1
+
+		'validate_subordinations'
+		Validate subordinations. Default is 1
+
+		'validate_depends'
+		Validate depends. Default is 1
+
+		'validate_required'
+		Validate required. Default is 1
+
+		'validate_kinds'
+		Validate kinds. Default is 1
+
+		'validate_unknown'
+		Validate unknown. Default is 1
+
+
+==============================================================================
+OBJECTS					*Vital.ArgumentParser-objects*
+
+------------------------------------------------------------------------------
+Parser object				*Vital.ArgumentParser-Parser*
+
+				*Vital.ArgumentParser-Parser.add_argument()*
+Parser.add_argument({name} [, {description}, {settings}])
+Parser.add_argument({name} [, {short}, {description}, {settings}])
+
+	Define a new argument to the parser.
+
+	{name} (required)
+	|String| value. A name of the argument. It is used as an entry name
+	as well.  It must start from '--'.
+
+	{short} (optional)
+	|String| value. A short name (alias) of the argument.
+	It must start from '-'.
+
+	{description} (optional)
+	|String| value. A description string of the argument.
+	It is used in help.
+
+	{settings} (optional)
+	|Dictionary| value. A extra options of the arguments
+
+		'kind'				*Vital.ArgumentParser-kinds*
+		A kind of the argument. You can specify one of the followings
+		- *Vital.ArgumentParser-kinds-any*
+		  This kind can be a switch or value.
+		- *Vital.ArgumentParser-kinds-switch* (Default)
+		  This kind cannot take a value. Useful for switch.
+		- *Vital.ArgumentParser-kinds-value*
+		  This kind require a value. Useful for options.
+		- *Vital.ArgumentParser-kinds-choice*
+		  This kind require a value which listed in 'choices' option.
+
+		'choices'
+		A |List| value. |Vital.ArgumentParser-kinds-choice| only allow the
+		values in the list. If this value is specified, 'kind' will
+		automatically be |Vital.ArgumentParser-kinds-choice|.
+
+		'required'
+		0 or 1. If it is 1, the parser will complain when the argument
+		is not specified.
+
+		'default'
+		A default value of the argument.
+
+		'complete'
+		A |List| or |Funcref| which return a |List|. Used for command
+		line completion of the argument.
+		If nothing is specified, 'file' completion is used as a
+		default completion.
+
+				*Vital.ArgumentParser-conflict_with*
+		'conflict_with'
+		A |String| or |List|. If |String| is specified, it will
+		transform to |List| internally.
+		You can specify a conflict group name to this option.
+		All arguments which belongs to a same conflict group cannot be
+		specified in the same time.
+
+		In the following example, --foo and --bar belogns to conflict
+		group 'a' thus cannot be specified in the same time.
+		--foo and --hoge belongs to conflict group 'b' thus these also
+		cannot be specified in the same time.
+		However, --bar and --hoge does not share any conflict groups
+		thus these arguments can be specified in the same time.
+>
+			call s:P.add_argument('--foo', '', {
+				\ 'conflict_with': ['a', 'b'],
+				\})
+			call s:P.add_argument('--bar', '', {
+				\ 'conflict_with': 'a',
+				\})
+			call s:P.add_argument('--hoge', '', {
+				\ 'conflict_with': ['c', 'b'],
+				\})
+<
+				*Vital.ArgumentParser-subordination_of*
+		'subordination_of'
+		A |String| or |List|. If |String| is specified, it will
+		transform to |List| internally.
+		If any argument names are specified in this option. The
+		argument will be a subordination of the specified arguments.
+		Thus the argument cannot be specified with no parents
+		arguments (arguments specified in this option).
+
+		In the following example, --hoge is a subordination of --foo
+		and --bar thus --hoge cannot be specified without --foo or
+		--bar ('--foo --hoge' or '--bar --hoge' is OK.)
+>
+			call s:P.add_argument('--foo', '')
+			call s:P.add_argument('--bar', '')
+			call s:P.add_argument('--hoge', '', {
+				\ 'subordination_of': ['foo', 'bar'],
+				\})
+<
+				*Vital.ArgumentParser-depend_on*
+		'depend_on'
+		A |String| or |List|. If |String| is specified, it will
+		transform to |List| internally.
+		If any argument names are specified in this option. The
+		argument will depend on the specified arguments.
+		Thus the argument cannot be specified without any parents
+		arguments (arguments specified in this option).
+
+		In the following example, --hoge is depend on --foo and --bar
+		thus --hoge cannot be specified without --foo and --bar 
+		('--foo --hoge' or '--bar --hoge' is NOT ok but '--foo --bar
+		--hoge' is OK.)
+>
+			call s:P.add_argument('--foo', '')
+			call s:P.add_argument('--bar', '')
+			call s:P.add_argument('--hoge', '', {
+				\ 'depend_on': ['foo', 'bar'],
+				\})
+<
+				*Vital.ArgumentParser-Parser.parse()*
+Parser.parse({bang}, {range} [, {f-args}])
+	
+	Parse arguments and return a |Dictionary|.
+	See |Vital.ArgumentParser-usage| for a working example.
+
+	{bang}
+	You must specify <q-bang>
+
+	{range}
+	You must specify [<line1>, <line2>]
+
+	{f-args}
+	You should specify <f-args>
+
+				*Vital.ArgumentParser-Parser.help()*
+Parser.help()
+
+	Display help.
+
+				*Vital.ArgumentParser-Parser.complete()*
+Parser.complete({arglead}, {cmdline}, {cursorpos})
+
+	Used to complete arguments and its values in command line.
+	Use this function as
+>
+		function! CompleteFunctionForHoge(arglead, cmdline, cursorpos)
+		  return s:parser.complete(a:arglead, a:cmdline, a:cursorpos)
+		endfunction
+		command! -complete=customlist,CompleteFunctionForHoge Hoge ...
+<
+
+==============================================================================
+Validation				*Vital.ArgumentParser-validation*
+
+In |Vital.ArgumentParser-Parser.parse()| function, the following validations
+are performed. These validations are omitted by configure corresponding
+options to |Vital.ArgumentParser.new()|.
+
+1. Conflict groups ('validate_conflict_groups')
+2. Subordinations ('validate_subordinations')
+3. Depends ('validate_depends')
+4. Required ('validate_required')
+5. Kinds ('validate_kinds')
+6. Unknown ('validate_unknown')
+
+If validation has failed, the parser complain about it.
+
+
+==============================================================================
+Hooks						*Vital.ArgumentParser-hooks*
+
+The following four hooks are available.
+
+Note: You have to return an argument list in all hook functions.
+
+			*Vital.ArgumentParser-Parser.hooks.pre_validation*
+Paresr.hooks.pre_validation(args)
+
+	Called just before the validation. Useful to regulate the value for
+	validation.
+>
+		function! s:parser.hooks.pre_validation(args) abort
+		  let args = copy(a:args)
+		  " Automatically specify 'post' if no conflicted arguments
+		  " are specified.
+		  if self.has_conflict_with('post', args)
+		    " there is no conflicted arguments, thus specify 'post'
+		    let args.post = self.true
+		  endif
+		  return args
+		endfunction
+<
+			*Vital.ArgumentParser-Parser.hooks.post_validation*
+			*Vital.ArgumentParser-Parser.hooks.pre_transformation*
+Paresr.hooks.pre_transformation(args)
+Paresr.hooks.post_validation(args)
+
+	Called just after the validation and just before the transformation.
+
+			*Vital.ArgumentParser-Parser.hooks.post_transformation*
+Paresr.hooks.post_transformation(args)
+
+	Called just after the transformation. Useful to regulate the actual
+	values (before transformation, all SWITCH value are represented as a
+	|Funcref|).
+>
+		function! s:parser.hooks.post_transformation(args) abort
+		  let args = copy(a:args)
+		  " If private is specified, specify 'public': 0 and remove
+		  " private
+		  if has_key(args, 'private')
+		    let args.public = !args.private
+		    unlet args['private']
+		  endif
+		  return args
+		endfunction
+<
+			*Vital.ArgumentParser-Parser.hooks.pre_completion*
+Paresr.hooks.pre_completion(args)
+
+	Called just before the completion. Useful to regulate the value for
+	completion.
+>
+		function! s:parser.hooks.pre_completion(args) abort
+		  let args = copy(a:args)
+		  " Automatically specify 'post' if no conflicted arguments
+		  " are specified.
+		  if self.has_conflict_with('post', args)
+		    " there is no conflicted arguments, thus specify 'post'
+		    let args.post = self.true
+		  endif
+		  return args
+		endfunction
+<
+			*Vital.ArgumentParser-Parser.hooks.post_completion*
+Paresr.hooks.post_completion(candidates)
+
+	Called just after the completion candidate has determined. Useful to
+	regulate the actual candidates.
+
+==============================================================================
+vim:tw=78:fo=tcq2mM:ts=8:ft=help:norl
