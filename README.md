@@ -68,10 +68,12 @@ call s:parser.add_argument('--hoge', '-h',
 call s:parser.add_argument('--piyo', '-p',
 	\ 'description of the argument', {
 	\ 'required': 1,
+	\ 'kind': s:parser.kinds.value,
 	\})
 call s:parser.add_argument('--ahya', '-a',
 	\ 'description of the argument', {
 	\ 'default': 'AHYA',
+	\ 'kind': s:parser.kinds.any,
 	\})
 
 " conflict_with, subordination_of
@@ -124,8 +126,8 @@ Hoge! --foo --bar --hoge a --piyo Hi
 Hoge --help
 "
 " Arguments:
-"     --foo [FOO]          description of the argument
-"                          (kind: ANY)
+"     --foo                description of the argument
+"                          (kind: SWITCH)
 " 
 " -h, --help               show this help message
 "                          (kind: SWITCH)
@@ -133,8 +135,8 @@ Hoge --help
 " -a, --ahya [AHYA]        description of the argument
 "                          (kind: ANY)
 " 
-"     --private [PRIVATE]  a visibility flag of command
-"                          (kind: ANY)
+"     --private            a visibility flag of command
+"                          (kind: SWITCH)
 "                          (conflict_with: visibility)
 "                          (subordination_of: add, change, delete)
 " 
@@ -145,24 +147,24 @@ Hoge --help
 "     --bar                description of the argument
 "                          (kind: SWITCH)
 " 
-"     --change [CHANGE]    a command to change something
+"     --change             a command to change something
 "                          (kind: ANY)
 "                          (conflict_with: command)
 " 
-"     --delete [DELETE]    a command to delete something
-"                          (kind: ANY)
+"     --delete             a command to delete something
+"                          (kind: SWITCH)
 "                          (conflict_with: command)
 " 
-"     --add [ADD]          a command to add something
-"                          (kind: ANY)
+"     --add                a command to add something
+"                          (kind: SWITCH)
 "                          (conflict_with: command)
 " 
 " -p, --piyo [PIYO]        description of the argument
-"                          (kind: ANY)
+"                          (kind: VALUE)
 "                          (required)
 " 
-"     --public [PUBLIC]    a visibility flag of command
-"                          (kind: ANY)
+"     --public             a visibility flag of command
+"                          (kind: SWITCH)
 "                          (conflict_with: visibility)
 "                          (subordination_of: add, change, delete)
 " 

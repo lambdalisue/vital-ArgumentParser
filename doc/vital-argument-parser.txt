@@ -90,10 +90,12 @@ This library's interface is inspired by ArgumentParser in Python.
 	call s:parser.add_argument('--piyo', '-p',
 		\ 'description of the argument', {
 		\ 'required': 1,
+		\ 'kind': s:parser.kinds.value,
 		\})
 	call s:parser.add_argument('--ahya', '-a',
 		\ 'description of the argument', {
 		\ 'default': 'AHYA',
+		\ 'kind': s:parser.kinds.any,
 		\})
 
 	" conflict_with, subordination_of
@@ -150,47 +152,47 @@ This library's interface is inspired by ArgumentParser in Python.
 This paresr automatically add '--help' argument to show a help like:
 >
 	Arguments:
-	--foo            description of the argument
-			(kind: SWITCH)
-
-	-h, --help           show this help message
-			(kind: SWITCH)
-
-	-a, --ahya           description of the argument
-			(kind: SWITCH)
-
-	--private        a visibility flag of command
-			(kind: SWITCH)
-			(conflict_with: visibility)
-			(subordination_of: add, change, delete)
-
-	-h, --hoge {choice}  description of the argument
-			(kind: CHOICE)
-			({choice}: a, b, c)
-
-	--bar            description of the argument
-			(kind: SWITCH)
-
-	--change         a command to change something
-			(kind: SWITCH)
-			(conflict_with: command)
-
-	--delete         a command to delete something
-			(kind: SWITCH)
-			(conflict_with: command)
-
-	--add            a command to add something
-			(kind: SWITCH)
-			(conflict_with: command)
-
-	-p, --piyo           description of the argument
-			(kind: SWITCH)
-			(required)
-
-	--public         a visibility flag of command
-			(kind: SWITCH)
-			(conflict_with: visibility)
-			(subordination_of: add, change, delete)
+	    --foo                description of the argument
+	                         (kind: SWITCH)
+	
+	-h, --help               show this help message
+	                         (kind: SWITCH)
+	
+	-a, --ahya [AHYA]        description of the argument
+	                         (kind: ANY)
+	
+	    --private            a visibility flag of command
+	                         (kind: SWITCH)
+	                         (conflict_with: visibility)
+	                         (subordination_of: add, change, delete)
+	
+	-h, --hoge {choice}      description of the argument
+	                         (kind: CHOICE)
+	                         ({choice}: a, b, c)
+	
+	    --bar                description of the argument
+	                         (kind: SWITCH)
+	
+	    --change             a command to change something
+	                         (kind: ANY)
+	                         (conflict_with: command)
+	
+	    --delete             a command to delete something
+	                         (kind: SWITCH)
+	                         (conflict_with: command)
+	
+	    --add                a command to add something
+	                         (kind: SWITCH)
+	                         (conflict_with: command)
+	
+	-p, --piyo [PIYO]        description of the argument
+	                         (kind: VALUE)
+	                         (required)
+	
+	    --public             a visibility flag of command
+	                         (kind: SWITCH)
+	                         (conflict_with: visibility)
+	                         (subordination_of: add, change, delete)
 <
 
 ==============================================================================
