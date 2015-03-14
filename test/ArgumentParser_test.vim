@@ -16,12 +16,12 @@ call vital#of('vital').unload()
 let s:V = vital#of('vital')
 let s:A = s:V.import("ArgumentParser")
 
-"function! s:suite.test_shellwords() " {{{
-"  call s:assert.equals(s:A.shellwords("A B C"), ["A", "B", "C"])
-"  call s:assert.equals(s:A.shellwords("A 'B C' D"), ["A", "B C", "D"])
-"  call s:assert.equals(s:A.shellwords("A \"B C\" D"), ["A", "B C", "D"])
-"  call s:assert.equals(s:A.shellwords("A 'B \"C\" D'"), ["A", "B \"C\" D"])
-"endfunction " }}}
+function! s:suite.test_shellwords() " {{{
+  call s:assert.equals(s:A.shellwords("A B C"), ["A", "B", "C"])
+  call s:assert.equals(s:A.shellwords("A 'B C' D"), ["A", "B C", "D"])
+  call s:assert.equals(s:A.shellwords("A \"B C\" D"), ["A", "B C", "D"])
+  call s:assert.equals(s:A.shellwords("A 'B \"C\" D'"), ["A", "B \"C\" D"])
+endfunction " }}}
 function! s:suite.test_new() " {{{
   let p = s:A.new()
   call s:assert.true(has_key(p, 'add_argument'))
@@ -110,6 +110,7 @@ function! s:suite.test__parse_cmdline() " {{{
   call s:assert.equals(args, {
         \ '__unknown__': ['piyo'],
         \ '__args__': ['foo', 'bar'],
+        \ '__shellwords__': ['--foo', '-b', 'hoge', 'piyo'],
         \ 'foo': p.true, 'bar': 'hoge',
         \})
 endfunction " }}}
@@ -124,6 +125,7 @@ function! s:suite.test__parse_args() " {{{
         \ '__range__': [0, 1],
         \ '__unknown__': ['piyo'],
         \ '__args__': ['foo', 'bar'],
+        \ '__shellwords__': ['--foo', '-b', 'hoge', 'piyo'],
         \ 'foo': p.true, 'bar': 'hoge',
         \})
 endfunction " }}}
@@ -283,6 +285,7 @@ function! s:suite.test__translate() " {{{
   call s:assert.equals(p._transform(args), {
         \ '__unknown__': [],
         \ '__args__': ['foo', 'bar', 'hoge', 'piyo'],
+        \ '__shellwords__': ['--foo', '--bar', '--hoge', 'VALID', '--piyo', 'A'],
         \ 'foo': 1, 'bar': 1, 'hoge': 'VALID', 'piyo': 'A',
         \})
 endfunction " }}}
@@ -328,6 +331,7 @@ function! s:suite.test_parse() " {{{
         \ '__range__': [0, 0],
         \ '__unknown__': [],
         \ '__args__': [],
+        \ '__shellwords__': [],
         \ 'bar': 'hoge',
         \})
   call s:assert.equals(p.parse('', [0, 0], '--bar piyo'), {
@@ -335,6 +339,7 @@ function! s:suite.test_parse() " {{{
         \ '__range__': [0, 0],
         \ '__unknown__': [],
         \ '__args__': ['bar'],
+        \ '__shellwords__': ['--bar', 'piyo'],
         \ 'bar': 'piyo',
         \})
 
