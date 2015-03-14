@@ -1,4 +1,4 @@
-vital-ArgumentParser
+vital-ArgumentParser  [![Build Status](https://travis-ci.org/lambdalisue/vital-ArgumentParser.svg)](https://travis-ci.org/lambdalisue/vital-ArgumentParser)
 ==============================================================================
 A high functional argument parser
 
