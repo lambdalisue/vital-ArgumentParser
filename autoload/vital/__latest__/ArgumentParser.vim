@@ -72,7 +72,7 @@ function! s:get_completers() abort " {{{
 endfunction " }}}
 function! s:completers.file(arglead, cmdline, cursorpos, args) abort " {{{
   " Ref: Vital.vim OptionParser.vim
-  let candidates = glob(a:arglead . '*', 0, 1)
+  let candidates = split(glob(a:arglead . '*', 0), "\n")
   " substitute /home/<username> to ~/ if ~/ is specified
   if a:arglead =~# '^\~'
     let home_dir = expand('~')
