@@ -43,6 +43,12 @@ INSTALL
 NeoBundle 'lambdalisue/vital-ArgumentParser'
 ```
 
+And call the following to bundle this plugin
+
+```vim
+:Vitalize . +ArgumentParser
+```
+
 USAGE
 ==============================================================================
 
