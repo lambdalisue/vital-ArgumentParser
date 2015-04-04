@@ -97,6 +97,10 @@ This library's interface is inspired by ArgumentParser in Python.
 		\ 'default': 'AHYA',
 		\ 'kind': s:parser.kinds.any,
 		\})
+	call s:parser.add_argument('--hoho', '-o',
+		\ 'description of the argument', {
+		\ 'kind': s:parser.kinds.any,
+		\})
 
 	" conflict_with, subordination_of
 	call s:parser.add_argument('--add',
@@ -137,16 +141,21 @@ This library's interface is inspired by ArgumentParser in Python.
 		\ -complete=customlist,Complete Hoge
 		\ :call Command(<q-bang>, [<line1>, <line2>], <f-args>)
 
-	Hoge! --foo --bar --hoge a --piyo Hi
+	Hoge! --foo --bar --hoge a --piyo Hi --hoho="ho ho"
 	" => {
 	"	'__bang__': 1,
 	"	'__range__': [1, 56],
-	"	'__args__': ['foo', 'bar', 'hoge', 'piyo'],
+	"	'__args__': ['foo', 'bar', 'hoge', 'piyo', 'hoho'],
+	"	'__shellwords__': [
+	"	  '--foo', '--bar', '--hoge', 'a', '--piyo',
+	"	  'Hi', '--hoho="ho ho"',
+	"	],
 	"	'__unknown__': [],
 	"	'foo': 1,
 	"	'bar': 1,
 	"	'hoge': 'a',
 	"	'piyo': 'Hi',
+	"	'hoho': 'ho ho',
 	" }
 <
 This paresr automatically add '--help' argument to show a help like:
@@ -229,6 +238,12 @@ new([{settings}])			*Vital.ArgumentParser.new()*
 
 		'validate_unknown'
 		Validate unknown. Default is 1
+
+		'support_equal_assign'
+		1 to support --foo=bar type value assign. Default is 1
+
+		'support_nonequal_assign'
+		1 to support --foo bar type value assign. Default is 1
 
 
 ==============================================================================

@@ -18,9 +18,10 @@ let s:A = s:V.import("ArgumentParser")
 
 function! s:suite.test_shellwords() " {{{
   call s:assert.equals(s:A.shellwords("A B C"), ["A", "B", "C"])
-  call s:assert.equals(s:A.shellwords("A 'B C' D"), ["A", "B C", "D"])
-  call s:assert.equals(s:A.shellwords("A \"B C\" D"), ["A", "B C", "D"])
-  call s:assert.equals(s:A.shellwords("A 'B \"C\" D'"), ["A", "B \"C\" D"])
+  call s:assert.equals(s:A.shellwords("A 'B C' D"), ["A", "'B C'", "D"])
+  call s:assert.equals(s:A.shellwords('A "B C" D'), ["A", '"B C"', "D"])
+  call s:assert.equals(s:A.shellwords("A 'B \"C\" D'"), ["A", '''B "C" D'''])
+  call s:assert.equals(s:A.shellwords("A='B' C D"), ["A='B'", "C", "D"])
 endfunction " }}}
 function! s:suite.test_new() " {{{
   let p = s:A.new()
@@ -106,12 +107,46 @@ function! s:suite.test__parse_cmdline() " {{{
   call p.add_argument('--foo', 'description')
   call p.add_argument('--bar', '-b', 'description')
   call p.add_argument('--hoge', 'description')
-  let args = p._parse_cmdline('--foo -b hoge piyo')
+  call p.add_argument('--ahya', 'description')
+  call p.add_argument('--hoho', 'description')
+  let args = p._parse_cmdline('--foo -b hoge --ahya=ahya piyo --hoho="ho ho ho"')
   call s:assert.equals(args, {
         \ '__unknown__': ['piyo'],
-        \ '__args__': ['foo', 'bar'],
-        \ '__shellwords__': ['--foo', '-b', 'hoge', 'piyo'],
-        \ 'foo': p.true, 'bar': 'hoge',
+        \ '__args__': ['foo', 'bar', 'ahya', 'hoho'],
+        \ '__shellwords__': ['--foo', '-b', 'hoge', '--ahya=ahya', 'piyo', '--hoho="ho ho ho"'],
+        \ 'foo': p.true, 'bar': 'hoge', 'ahya': 'ahya', 'hoho': 'ho ho ho',
+        \})
+
+  let p = s:A.new({
+        \ 'support_equal_assign': 0,
+        \})
+  call p.add_argument('--foo', 'description')
+  call p.add_argument('--bar', '-b', 'description')
+  call p.add_argument('--hoge', 'description')
+  call p.add_argument('--ahya', 'description')
+  call p.add_argument('--hoho', 'description')
+  let args = p._parse_cmdline('--foo -b hoge --ahya=ahya piyo --hoho="ho ho ho"')
+  call s:assert.equals(args, {
+        \ '__unknown__': [],
+        \ '__args__': ['foo', 'bar', 'ahya', 'hoho'],
+        \ '__shellwords__': ['--foo', '-b', 'hoge', '--ahya=ahya', 'piyo', '--hoho="ho ho ho"'],
+        \ 'foo': p.true, 'bar': 'hoge', 'ahya': 'piyo', 'hoho': p.true,
+        \})
+
+  let p = s:A.new({
+        \ 'support_nonequal_assign': 0,
+        \})
+  call p.add_argument('--foo', 'description')
+  call p.add_argument('--bar', '-b', 'description')
+  call p.add_argument('--hoge', 'description')
+  call p.add_argument('--ahya', 'description')
+  call p.add_argument('--hoho', 'description')
+  let args = p._parse_cmdline('--foo -b hoge --ahya=ahya piyo --hoho="ho ho ho"')
+  call s:assert.equals(args, {
+        \ '__unknown__': ['hoge', 'piyo'],
+        \ '__args__': ['foo', 'bar', 'ahya', 'hoho'],
+        \ '__shellwords__': ['--foo', '-b', 'hoge', '--ahya=ahya', 'piyo', '--hoho="ho ho ho"'],
+        \ 'foo': p.true, 'bar': p.true, 'ahya': 'ahya', 'hoho': 'ho ho ho',
         \})
 endfunction " }}}
 function! s:suite.test__parse_args() " {{{
