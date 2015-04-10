@@ -66,4 +66,432 @@ Describe ArgumentParser
       Assert Equals(ret, exp)
     End
   End
+
+  Context .new([{options}])
+    It should return an instance of ArgumentParser
+      let ret = s:A.new()
+      " property
+      Assert KeyExists(ret, 'arguments')
+      Assert KeyExists(ret, 'positional')
+      Assert KeyExists(ret, 'required')
+      Assert KeyExists(ret, 'alias')
+      " method
+      Assert KeyExists(ret, 'add_argument')
+    End
+  End
+
+  Context Instance
+    Context ._parse_cmdline({cmdline}[, {args}])
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', { 'deniable': 1 })
+        call parser.add_argument('--bar', { 'alias': 'b' })
+        call parser.add_argument('-H')
+        call parser.add_argument('piyo')
+        call parser.add_argument('puyo')
+      End
+      It should correctly parse optional arguments
+        let ret = parser._parse_cmdline('--foo -b -H=hoge')
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--foo', '-b', '-H=hoge'],
+              \ 'foo': 1,
+              \ 'bar': 1,
+              \ 'H': 'hoge',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse positional arguments
+        let ret = parser._parse_cmdline('hi "hello world"')
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['hi', '"hello world"'],
+              \ 'piyo': 'hi',
+              \ 'puyo': 'hello world',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse arguments
+        let ret = parser._parse_cmdline('hi --foo -b "hello world" --unknown unk')
+        let exp = {
+              \ '__unknown__': ['--unknown', 'unk'],
+              \ '__args__': ['hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
+              \ 'foo': 1,
+              \ 'bar': 1,
+              \ 'piyo': 'hi',
+              \ 'puyo': 'hello world',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse '--foo foo' value assignment if enable_positional_assign is defined
+        let parser.enable_positional_assign = 1
+        let ret = parser._parse_cmdline('--foo bar')
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--foo', 'bar'],
+              \ 'foo': 'bar',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse '--no-foo' if the argument is deniable
+        let ret = parser._parse_cmdline('--no-foo')
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--no-foo'],
+              \ 'foo': 0,
+              \}
+        Assert Equals(ret, exp)
+      End
+    End
+
+    Context ._validate_required({args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \ 'required': 1,
+              \})
+        call parser.add_argument('--bar', {
+              \ 'alias': 'b',
+              \ 'required': 1,
+              \})
+        call parser.add_argument('-H', {
+              \})
+        call parser.add_argument('piyo', {
+              \ 'required': 1,
+              \})
+        call parser.add_argument('puyo', {
+              \})
+      End
+      It should not raise any exceptions if all requirements are specified
+        let args = parser._parse_cmdline('--foo --bar hello')
+        call parser._validate_required(args)
+      End
+      It should raise an exception if there are any missing requirements
+        let args = parser._parse_cmdline('--foo -H')
+        Throw parser._validate_required(args), 'argument is required'
+      End
+    End
+
+    Context ._validate_types({args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \ 'type': s:A.types.any,
+              \})
+        call parser.add_argument('--bar', {
+              \ 'type': s:A.types.value,
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'type': s:A.types.switch,
+              \})
+        call parser.add_argument('--piyo', {
+              \ 'type': s:A.types.choice,
+              \ 'choices': ['a', 'b', 'c'],
+              \})
+      End
+      It should not raise any exceptions if all arguments are correctly specified
+        let args = parser._parse_cmdline('--foo --bar=bar --hoge --piyo=a')
+        call parser._validate_types(args)
+      End
+      It should raise an exception if no value is specified to VALUE argument
+        let args = parser._parse_cmdline('--foo --bar --hoge')
+        Throw parser._validate_types(args), 'argument is VALUE argument'
+      End
+      It should raise an exception if value is specified to SWITCH argument
+        let args = parser._parse_cmdline('--foo --bar=bar --hoge=hoge')
+        Throw parser._validate_types(args), 'argument is SWITCH argument'
+      End
+      It should raise an exception if no value is specified to CHOICE argument
+        let args = parser._parse_cmdline('--piyo')
+        Throw parser._validate_types(args), 'argument is CHOICE argument'
+      End
+      It should raise an exception if an invalid value is specified to CHOICE argument
+        let args = parser._parse_cmdline('--piyo=hogehoge')
+        Throw parser._validate_types(args), 'argument is CHOICE argument'
+      End
+    End
+
+    Context ._validate_conflicts({args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \ 'conflicts': ['bar', 'hoge'],
+              \})
+        call parser.add_argument('--bar', {
+              \ 'conflicts': ['foo', 'hoge'],
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'conflicts': ['foo', 'bar'],
+              \})
+        call parser.add_argument('--piyo', {
+              \ 'conflicts': ['puyo'],
+              \})
+        call parser.add_argument('--puyo', {
+              \ 'conflicts': ['piyo'],
+              \})
+      End
+      It should not raise any exceptions if no conflicts found
+        let args = parser._parse_cmdline('--foo --piyo')
+        call parser._validate_conflicts(args)
+      End
+      It should raise an exception if one of an argument conflict with another
+        let args = parser._parse_cmdline('--foo --bar')
+        Throw parser._validate_conflicts(args), 'argument conflicts with'
+      End
+    End
+
+    Context ._validate_superordinates({args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \})
+        call parser.add_argument('--bar', {
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'superordinates': ['foo', 'bar'],
+              \})
+        call parser.add_argument('piyo', {
+              \})
+        call parser.add_argument('--puyo', {
+              \ 'superordinates': ['piyo'],
+              \})
+      End
+      It should not raise any exceptions if one of superordinates is specified
+        let args = parser._parse_cmdline('--foo --hoge piyo --puyo')
+        call parser._validate_superordinates(args)
+      End
+      It should raise an exception if no superordinate is specified
+        let args = parser._parse_cmdline('--hoge --puyo')
+        Throw parser._validate_superordinates(args), 'No supoerordinate argument'
+      End
+    End
+
+    Context ._validate_dependencies({args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \})
+        call parser.add_argument('--bar', {
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'dependencies': ['foo', 'bar'],
+              \})
+        call parser.add_argument('--piyo', {
+              \})
+        call parser.add_argument('--puyo', {
+              \ 'dependencies': ['piyo'],
+              \})
+      End
+      It should not raise any exception if all dependencies are exists
+        let args = parser._parse_cmdline('--foo --bar --hoge --piyo --puyo')
+        call parser._validate_dependencies(args)
+      End
+      It should raise an exception if any dependencies is missing
+        let args = parser._parse_cmdline('--hoge --puyo')
+        Throw parser._validate_dependencies(args), 'argument is required for'
+      End
+    End
+
+    Context ._validate_pattern({args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \ 'pattern': '\v^\d\d\d\-\d\d\d\d$'
+              \})
+      End
+      It should not raise any exceptions if the value follow the specified pattern
+        let args = parser._parse_cmdline('--foo=000-0000')
+        call parser._validate_types(args)
+      End
+      It should raise an exception if the value does not follow the specified pattern
+        let args = parser._parse_cmdline('--foo=00-000')
+        Throw parser._validate_types(args), 'argument is VALUE argument'
+      End
+    End
+
+    Context .add_argument({name}[, {description}, {options}])
+      Before
+        let parser = s:A.new()
+      End
+      It should return an argument instance
+        let ret = parser.add_argument('--foo')
+        Assert KeyExists(ret, 'name')
+        Assert KeyExists(ret, 'positional')
+        Assert KeyExists(ret, 'required')
+        Assert KeyExists(ret, 'default')
+        Assert KeyExists(ret, 'alias')
+        Assert KeyExists(ret, 'type')
+        Assert KeyExists(ret, 'deniable')
+        Assert KeyExists(ret, 'choices')
+        Assert KeyExists(ret, 'pattern')
+        Assert KeyExists(ret, 'conflicts')
+        Assert KeyExists(ret, 'superordinates')
+        Assert KeyExists(ret, 'dependencies')
+      End
+      It should assign an argument with a specified name
+        call parser.add_argument('--foo')
+        call parser.add_argument('-b')
+        call parser.add_argument('hoge')
+        Assert KeyExists(parser.arguments, 'foo')
+        Assert KeyExists(parser.arguments, 'b')
+        Assert KeyExists(parser.arguments, 'hoge')
+      End
+      It should add an argument into 'positional' list if no leading hyphen
+        call parser.add_argument('--foo')
+        call parser.add_argument('-b')
+        call parser.add_argument('hoge')
+        Assert Equals(parser.positional, ['hoge'])
+      End
+      It should add an argument into 'required' list if 'required' is specified
+        call parser.add_argument('--foo', { 'required': 1 })
+        call parser.add_argument('-b')
+        call parser.add_argument('hoge')
+        Assert Equals(parser.required, ['foo'])
+      End
+      It should add an argument alias into 'alias' dictionary if 'alias' is specified
+        call parser.add_argument('--foo', { 'alias': 'f' })
+        call parser.add_argument('-b')
+        call parser.add_argument('hoge')
+        Assert KeyExists(parser.alias, 'f')
+        Assert Equals(parser.alias.f, 'foo')
+      End
+      It should raise an exception if "alias" option is specified to a positional argument
+        Throw parser.add_argument('foo', { 'alias': 'f' }), '"alias" option cannot be specified'
+      End
+      It should raise an exception if "default" option is specified to a positional argument
+        Throw parser.add_argument('foo', { 'default': 'foo' }), '"default" option cannot be specified'
+      End
+      It should raise an exception if "type" option is ANY for a positional argument
+        let types = s:A.types
+        Throw parser.add_argument('foo', { 'type': types.any }), '"type" option cannot be ANY or SWITCH'
+      End
+      It should raise an exception if "type" option is SWITCH for a positional argument
+        let types = s:A.types
+        Throw parser.add_argument('foo', { 'type': types.switch }), '"type" option cannot be ANY or SWITCH'
+      End
+      It should raise an exception if "conflicts" option is specified to a positional argument
+        let switch = s:A.types.switch
+        Throw parser.add_argument('foo', { 'conflicts': ['a'] }), '"conflicts" option cannot be specified'
+      End
+      It should raise an exception if "dependencies" option is specified to a positional argument
+        let switch = s:A.types.switch
+        Throw parser.add_argument('foo', { 'dependencies': ['a'] }), '"dependencies" option cannot be specified'
+      End
+      It should raise an exception if "superordinates" option is specified to a positional argument
+        let switch = s:A.types.switch
+        Throw parser.add_argument('foo', { 'superordinates': ['a'] }), '"superordinates" option cannot be specified'
+      End
+      It should raise an exception if "default" and "required" option is specified together
+        Throw parser.add_argument('foo', { 'default': 'foo', 'required': 1 }), '"default" and "required" option cannot be specified'
+      End
+      It should raise an exception if "type" is "choice" and no "choices" is specified
+        Throw parser.add_argument('foo', { 'type': 'choice' }), '"type" is specified to "choice" but no "choices" is specified'
+      End
+      It should raise an exception if "pattern" is specified for SWITCH argument
+        let types = s:A.types
+        Throw parser.add_argument('foo', { 'type': types.switch, 'pattern': 'hello' }), '"pattern" option cannot be specified'
+      End
+    End
+
+    Context .get_conflicted_arguments({name}, {args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \ 'conflicts': ['bar', 'hoge'],
+              \})
+        call parser.add_argument('--bar', {
+              \ 'conflicts': ['foo', 'hoge'],
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'conflicts': ['foo', 'bar'],
+              \})
+        call parser.add_argument('--piyo', {
+              \ 'conflicts': ['puyo'],
+              \})
+        call parser.add_argument('--puyo', {
+              \ 'conflicts': ['piyo'],
+              \})
+      End
+      It should return an empty list if no conflicts found
+        let args = parser._parse_cmdline('--foo --piyo')
+        let ret = parser.get_conflicted_arguments('foo', args)
+        Assert Equals(ret, [])
+        let ret = parser.get_conflicted_arguments('piyo', args)
+        Assert Equals(ret, [])
+      End
+      It should return a list of conflicted argument names if any conflicts found
+        let args = parser._parse_cmdline('--foo --bar --hoge')
+        let ret = parser.get_conflicted_arguments('foo', args)
+        Assert Equals(sort(ret), ['bar', 'hoge'])
+      End
+    End
+
+    Context .get_superordinate_arguments({name}, {args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \})
+        call parser.add_argument('--bar', {
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'superordinates': ['foo', 'bar'],
+              \})
+        call parser.add_argument('piyo', {
+              \})
+        call parser.add_argument('--puyo', {
+              \ 'superordinates': ['piyo'],
+              \})
+      End
+      It should return an empty list if no superordinate argument is found
+        let args = parser._parse_cmdline('--hoge --puyo')
+        let ret = parser.get_superordinate_arguments('hoge', args)
+        Assert Equals(ret, [])
+        let ret = parser.get_superordinate_arguments('puyo', args)
+        Assert Equals(ret, [])
+      End
+      It should return a list of superordinate arguments if any
+        let args = parser._parse_cmdline('--foo --bar --hoge')
+        let ret = parser.get_superordinate_arguments('hoge', args)
+        Assert Equals(sort(ret), ['bar', 'foo'])
+      End
+    End
+
+    Context .get_missing_dependencies({name}, {args})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', {
+              \})
+        call parser.add_argument('--bar', {
+              \})
+        call parser.add_argument('--hoge', {
+              \ 'dependencies': ['foo', 'bar'],
+              \})
+        call parser.add_argument('--piyo', {
+              \})
+        call parser.add_argument('--puyo', {
+              \ 'dependencies': ['piyo'],
+              \})
+      End
+      It should return an empty list if all dependencies are exists
+        let args = parser._parse_cmdline('--foo --bar --hoge --piyo --puyo')
+        let ret = parser.get_missing_dependencies('foo', args)
+        Assert Equals(ret, [])
+        let ret = parser.get_missing_dependencies('bar', args)
+        Assert Equals(ret, [])
+        let ret = parser.get_missing_dependencies('hoge', args)
+        Assert Equals(ret, [])
+        let ret = parser.get_missing_dependencies('piyo', args)
+        Assert Equals(ret, [])
+        let ret = parser.get_missing_dependencies('puyo', args)
+        Assert Equals(ret, [])
+      End
+      It should return a list of conflicted argument names if any conflicts found
+        let args = parser._parse_cmdline('--hoge --puyo')
+        let ret = parser.get_missing_dependencies('hoge', args)
+        Assert Equals(sort(ret), ['bar', 'foo'])
+        let ret = parser.get_missing_dependencies('puyo', args)
+        Assert Equals(sort(ret), ['piyo'])
+      End
+    End
+  End
 End
