@@ -46,4 +46,24 @@ Describe ArgumentParser
       Assert Equals(ret, exp)
     End
   End
+
+  Context .strip_quotes({str})
+    It should return 'foo bar' for '"foo bar"'
+      let ret = s:A.strip_quotes('"foo bar"')
+      let exp = 'foo bar'
+      Assert Equals(ret, exp)
+    End
+
+    It should return 'foo bar' for "'foo bar'"
+      let ret = s:A.strip_quotes("'foo bar'")
+      let exp = 'foo bar'
+      Assert Equals(ret, exp)
+    End
+
+    It should return 'foo bar' for "foo bar"
+      let ret = s:A.strip_quotes("foo bar")
+      let exp = 'foo bar'
+      Assert Equals(ret, exp)
+    End
+  End
 End

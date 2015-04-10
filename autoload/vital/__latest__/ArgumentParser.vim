@@ -27,6 +27,13 @@ function! s:splitargs(str) abort " {{{
         \)
   return split(a:str, printf('\v%s*\zs%%(\s+|$)\ze', pattern))
 endfunction " }}}
+function! s:strip_quotes(str) abort " {{{
+  if a:str =~# '\v^%(".*"|''.*'')$'
+    return a:str[1:-2]
+  else
+    return a:str
+  endif
+endfunction " }}}
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
