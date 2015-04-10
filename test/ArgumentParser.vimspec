@@ -1,0 +1,49 @@
+call vital#of('vital').unload()
+let s:V = vital#of('vital')
+let s:A = s:V.import('ArgumentParser')
+
+Describe ArgumentParser
+  Context .splitargs({str})
+    It should return ['foo'] for 'foo'
+      let ret = s:A.splitargs('foo')
+      let exp = ['foo']
+      Assert Equals(ret, exp)
+    End
+
+    It should return ['foo', 'bar'] for 'foo bar'
+      let ret = s:A.splitargs('foo bar')
+      let exp = ['foo', 'bar']
+      Assert Equals(ret, exp)
+    End
+
+    It should return ['foo', '"bar bar"', 'hoge'] for 'foo "bar bar" hoge'
+      let ret = s:A.splitargs('foo "bar bar" hoge')
+      let exp = ['foo', '"bar bar"', 'hoge']
+      Assert Equals(ret, exp)
+    End
+
+    It should return ['"foo foo"', '"bar bar"', '"hoge hoge"'] for '"foo foo" "bar bar" "hoge hoge"'
+      let ret = s:A.splitargs('"foo foo" "bar bar" "hoge hoge"')
+      let exp = ['"foo foo"', '"bar bar"', '"hoge hoge"']
+      Assert Equals(ret, exp)
+    End
+
+    It should return ["foo", "'bar bar"', "hoge"] for "foo 'bar bar' hoge"
+      let ret = s:A.splitargs("foo 'bar bar' hoge")
+      let exp = ["foo", "'bar bar'", "hoge"]
+      Assert Equals(ret, exp)
+    End
+
+    It should return ["'foo foo'", "'bar bar'", "'hoge hoge'"] for "'foo foo' 'bar bar' 'hoge hoge'"
+      let ret = s:A.splitargs("'foo foo' 'bar bar' 'hoge hoge'")
+      let exp = ["'foo foo'", "'bar bar'", "'hoge hoge'"]
+      Assert Equals(ret, exp)
+    End
+
+    It should return ['foo="bar"', "hoge='piyo'"] for 'foo="bar" hoge=''piyo'''
+      let ret = s:A.splitargs('foo="bar" hoge=''piyo''')
+      let exp = ['foo="bar"', "hoge='piyo'"]
+      Assert Equals(ret, exp)
+    End
+  End
+End
