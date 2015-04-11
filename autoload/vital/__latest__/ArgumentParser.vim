@@ -19,10 +19,11 @@ let s:const.types.choice = 3
 function! s:_vital_loaded(V) dict abort
   let s:P = a:V.import('Prelude')
   let s:D = a:V.import('Data.Dict')
+  let s:L = a:V.import('Data.List')
   call extend(self, s:const)
 endfunction
 function! s:_vital_depends() abort
-  return ['Prelude', 'Data.Dict']
+  return ['Prelude', 'Data.Dict', 'Data.List']
 endfunction
 
 function! s:splitargs(str) abort " {{{
@@ -55,6 +56,7 @@ function! s:new(...) abort " {{{
 endfunction " }}}
 
 let s:parser = {
+      \ 'hooks': {},
       \ 'arguments': {},
       \ 'positional': [],
       \ 'required': [],
@@ -172,13 +174,37 @@ function! s:parser.get_missing_dependencies(name, args) abort " {{{
   let exists_pattern = printf('\v^%%(%s)$', join(keys(a:args), '|'))
   return filter(dependencies, 'v:val !~# exists_pattern')
 endfunction " }}}
+function! s:parser.get_positional_arguments() abort " {{{
+  return deepcopy(self.positional)
+endfunction " }}}
+function! s:parser.get_optional_arguments() abort " {{{
+  return map(filter(values(self.arguments), '!v:val.positional'), 'v:val.name')
+endfunction " }}}
+function! s:parser.get_optional_argument_aliases() abort " {{{
+  return keys(self.alias)
+endfunction " }}}
+function! s:parser._call_hook(name, args) abort " {{{
+  let args = a:args
+  if has_key(self.hooks, a:name)
+    let args = call(self.hooks[a:name], [args], self)
+  endif
+  return args
+endfunction " }}}
 function! s:parser.parse(bang, range, ...) abort " {{{
   let cmdline = get(a:000, 0, '')
   let args = self._parse_cmdline(cmdline, extend({
         \ '__bang__': a:bang == '!',
         \ '__range__': range,
         \}, get(a:000, 1, {}))
+  " assign default values
+  let exists_pattern = printf('\v^%%(%s)$', join(keys(args), '|'))
+  for argument in values(self.arguments)
+    if !empty(argument.default) && argument.name !~# exists_pattern
+      let args[argument.name] = argument.default
+    endif
+  endfor
   " validation
+  let args = self._call_hook('pre_validation', args)
   if self.validate_required
     call self._validate_required(args)
   endif
@@ -197,13 +223,7 @@ function! s:parser.parse(bang, range, ...) abort " {{{
   if self.validate_pattern
     call self._validate_pattern(args)
   endif
-  " assign default values
-  let exists_pattern = printf('\v^%%(%s)$', join(keys(args), '|'))
-  for argument in values(self.arguments)
-    if !empty(argument.default) && argument.name !~# exists_pattern
-      let args[argument.name] = argument.default
-    endif
-  endfor
+  let args = self._call_hook('post_validation', args)
   return args
 endfunction " }}}
 function! s:parser._parse_cmdline(cmdline, ...) abort " {{{
@@ -376,7 +396,30 @@ function! s:parser._validate_pattern(args) abort " {{{
     silent! unlet value
   endfor
 endfunction " }}}
-
+function! s:parser._complete_optional_argument(arglead, args) abort " {{{
+  let candidates = []
+  for argument in values(self.arguments)
+    if has_key(a:args, argument.name)
+      continue
+    elseif argument.positional
+      continue
+    elseif !empty(argument.conflicts) && !empty(self.get_conflicted_arguments(argument.name, a:args))
+      continue
+    elseif !empty(argument.superordinates) && empty(self.get_superordinate_arguments(argument.name, a:args))
+      continue
+    endif
+    call add(candidates, '--' . argument.name)
+    if !empty(argument.alias)
+      call add(candidates, '-' . argument.alias)
+    endif
+  endfor
+  let candidates = s:L.flatten(candidates)
+  if !empty(a:arglead)
+    return filter(candidates, printf('v:val =~# "^%s"', a:arglead))
+  else
+    return candidates
+  endif
+endfunction " }}}
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

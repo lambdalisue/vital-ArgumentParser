@@ -309,6 +309,34 @@ Describe ArgumentParser
       End
     End
 
+    Context ._complete_optional_argument({arglead}, {args})
+      Before
+        let parser = s:A.new()
+      End
+
+      It should return correct completion candidates
+        call parser.add_argument('--foo')
+        call parser.add_argument('--bar', { 'alias': 'b' })
+        call parser.add_argument('hoge')
+        call parser.add_argument('piyo', { 'choices': ['a', 'b', 'c'] })
+        let args = parser._parse_cmdline('--foo')
+        let ret = parser._complete_optional_argument('', args)
+        Assert Equals(ret, ['--bar', '-b'])
+
+        let args = parser._parse_cmdline('')
+        let ret = parser._complete_optional_argument('-', args)
+        Assert Equals(ret, ['--foo', '--bar', '-b'])
+
+        let args = parser._parse_cmdline('')
+        let ret = parser._complete_optional_argument('--', args)
+        Assert Equals(ret, ['--foo', '--bar'])
+
+        let args = parser._parse_cmdline('hoge a --bar')
+        let ret = parser._complete_optional_argument('', args)
+        Assert Equals(ret, ['--foo'])
+      End
+    End
+
     Context .add_argument({name}[, {description}, {options}])
       Before
         let parser = s:A.new()
