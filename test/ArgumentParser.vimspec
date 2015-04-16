@@ -81,7 +81,7 @@ Describe ArgumentParser
   End
 
   Context Instance
-    Context ._parse_cmdline({cmdline}[, {args}])
+    Context ._parse_cmdline({cmdline_or_args}[, {args}])
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', { 'deniable': 1 })
@@ -135,6 +135,58 @@ Describe ArgumentParser
       End
       It should correctly parse '--no-foo' if the argument is deniable
         let ret = parser._parse_cmdline('--no-foo')
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--no-foo'],
+              \ 'foo': 0,
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse optional arguments (list)
+        let ret = parser._parse_cmdline(['--foo', '-b', '-H=hoge'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--foo', '-b', '-H=hoge'],
+              \ 'foo': 1,
+              \ 'bar': 1,
+              \ 'H': 'hoge',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse positional arguments (list)
+        let ret = parser._parse_cmdline(['hi', '"hello world"'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['hi', '"hello world"'],
+              \ 'piyo': 'hi',
+              \ 'puyo': 'hello world',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse arguments (list)
+        let ret = parser._parse_cmdline(['hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
+        let exp = {
+              \ '__unknown__': ['--unknown', 'unk'],
+              \ '__args__': ['hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
+              \ 'foo': 1,
+              \ 'bar': 1,
+              \ 'piyo': 'hi',
+              \ 'puyo': 'hello world',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse '--foo foo' value assignment if enable_positional_assign is defined (list)
+        let parser.enable_positional_assign = 1
+        let ret = parser._parse_cmdline(['--foo', 'bar'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--foo', 'bar'],
+              \ 'foo': 'bar',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly parse '--no-foo' if the argument is deniable (list)
+        let ret = parser._parse_cmdline(['--no-foo'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--no-foo'],

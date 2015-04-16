@@ -226,12 +226,16 @@ function! s:parser.parse(bang, range, ...) abort " {{{
   let args = self._call_hook('post_validation', args)
   return args
 endfunction " }}}
-function! s:parser._parse_cmdline(cmdline, ...) abort " {{{
+function! s:parser._parse_cmdline(cmdline_or_args, ...) abort " {{{
   let args = extend({
         \ '__unknown__': [],
         \ '__args__': [],
         \}, get(a:000, 0, {}))
-  let args.__args__ = s:splitargs(a:cmdline)
+  if s:P.is_string(a:cmdline_or_args)
+    let args.__args__ = extend(args.__args__, s:splitargs(a:cmdline_or_args))
+  else
+    let args.__args__ = extend(args.__args__, a:cmdline_or_args)
+  endif
   let length = len(args.__args__)
   let cursor = 0
   let arguments_pattern = printf('\v^%%(%s)$', join(keys(self.arguments), '|'))
@@ -419,6 +423,8 @@ function! s:parser._complete_optional_argument(arglead, args) abort " {{{
   else
     return candidates
   endif
+endfunction " }}}
+function! s:parser._complete_positional_argument(arglead, args) abort " {{{
 endfunction " }}}
 
 let &cpo = s:save_cpo
