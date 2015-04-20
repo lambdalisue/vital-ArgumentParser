@@ -20,10 +20,11 @@ function! s:_vital_loaded(V) dict abort
   let s:P = a:V.import('Prelude')
   let s:D = a:V.import('Data.Dict')
   let s:L = a:V.import('Data.List')
+  let s:C = a:V.import('ArgumentParser.Completer')
   call extend(self, s:const)
 endfunction
 function! s:_vital_depends() abort
-  return ['Prelude', 'Data.Dict', 'Data.List']
+  return ['Prelude', 'Data.Dict', 'Data.List', 'ArgumentParser.Completer']
 endfunction
 
 function! s:splitargs(str) abort " {{{
@@ -68,6 +69,13 @@ let s:parser = {
       \ 'validate_dependencies': 1,
       \ 'validate_pattern': 1,
       \}
+function! s:parser._call_hook(name, args) abort " {{{
+  let args = a:args
+  if has_key(self.hooks, a:name)
+    let args = call(self.hooks[a:name], [args], self)
+  endif
+  return args
+endfunction " }}}
 function! s:parser.add_argument(name, ...) abort " {{{
   " determind name
   if a:name =~# '^--\?'
@@ -147,6 +155,14 @@ function! s:parser.add_argument(name, ...) abort " {{{
   if !empty(argument.alias)
     let self.alias[argument.alias] = argument.name
   endif
+  " register completer
+  if !has_key(argument, 'completer')
+    if !empty(argument.choices)
+      let argument.completer = s:C.new('choice', { 'choices': choices })
+    else
+      let argument.completer = s:C.new('file')
+    endif
+  endif
   " return an argument instance for further manipulation
   return argument
 endfunction " }}}
@@ -182,13 +198,6 @@ function! s:parser.get_optional_arguments() abort " {{{
 endfunction " }}}
 function! s:parser.get_optional_argument_aliases() abort " {{{
   return keys(self.alias)
-endfunction " }}}
-function! s:parser._call_hook(name, args) abort " {{{
-  let args = a:args
-  if has_key(self.hooks, a:name)
-    let args = call(self.hooks[a:name], [args], self)
-  endif
-  return args
 endfunction " }}}
 function! s:parser.parse(bang, range, ...) abort " {{{
   let cmdline = get(a:000, 0, '')
@@ -400,31 +409,83 @@ function! s:parser._validate_pattern(args) abort " {{{
     silent! unlet value
   endfor
 endfunction " }}}
-function! s:parser._complete_optional_argument(arglead, args) abort " {{{
+function! s:parser.complete(arglead, cmdline, cursorpos, args) abort " {{{
+  if a:arglead =~# '\v^\-\-?[^=]+\='
+    return self._complete_optional_argument_value(
+          \ a:arglead,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ a:args,
+          \)
+  elseif a:arglead =~# '\v^\-\-?'
+    return self._complete_optional_argument(
+          \ a:arglead,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ a:args,
+          \)
+  else
+    return self._complete_positional_argument_value(
+          \ a:arglead,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ a:args,
+          \)
+  endif
+endfunction " }}}
+function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos, args) abort " {{{
+  let m = matchlist(a:arglead, '\v^\-\-?([^=]+)\=(.*)')
+  let name = m[1]
+  let value = m[2]
+  if has_key(self.arguments, name)
+    let candidates = self.arguments[name].completer.complete(
+          \ value,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ a:args,
+          \)
+  else
+    let candidates = []
+  endif
+  return candidates
+endfunction " }}}
+function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, args) abort " {{{
   let candidates = []
   for argument in values(self.arguments)
-    if has_key(a:args, argument.name)
-      continue
-    elseif argument.positional
+    if has_key(a:args, argument.name) || argument.positional
       continue
     elseif !empty(argument.conflicts) && !empty(self.get_conflicted_arguments(argument.name, a:args))
       continue
     elseif !empty(argument.superordinates) && empty(self.get_superordinate_arguments(argument.name, a:args))
       continue
     endif
-    call add(candidates, '--' . argument.name)
-    if !empty(argument.alias)
+    if '--' . argument.name =~# '^' . a:arglead
+      call add(candidates, '--' . argument.name)
+    endif
+    if !empty(argument.alias) && '-' . argument.alias =~# '^' . a:arglead
       call add(candidates, '-' . argument.alias)
     endif
   endfor
-  let candidates = s:L.flatten(candidates)
-  if !empty(a:arglead)
-    return filter(candidates, printf('v:val =~# "^%s"', a:arglead))
-  else
-    return candidates
-  endif
+  return candidates
 endfunction " }}}
-function! s:parser._complete_positional_argument(arglead, args) abort " {{{
+function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorpos, args) abort " {{{
+  let candidates = []
+  let npositional = 0
+  for argument in values(self.arguments)
+    if argument.positional && has_key(a:args, argument.name)
+      let npositional += 1
+    endif
+  endfor
+  let cpositional = get(self.arguments, get(self.positional, npositional, -1), {})
+  if !empty(cpositional)
+    let candidates = cpositional.completer.complete(
+          \ a:arglead,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ a:args,
+          \)
+  endif
+  return candidates
 endfunction " }}}
 
 let &cpo = s:save_cpo
