@@ -1,5 +1,5 @@
 "******************************************************************************
-" High functional argument (option) parser
+" Argument completer of ArgumentParser
 "
 " Author:   Alisue <lambdalisue@hashnote.net>
 " URL:      http://hashnote.net/
@@ -11,12 +11,10 @@ set cpo&vim
 
 function! s:_vital_loaded(V) dict abort
   let s:P = a:V.import('System.Filepath')
-  let s:D = a:V.import('Data.Dict')
-  let s:L = a:V.import('Data.List')
   call extend(self, s:const)
 endfunction
 function! s:_vital_depends() abort
-  return ['System.Filepath', 'Data.Dict', 'Data.List']
+  return ['System.Filepath']
 endfunction
 
 
@@ -54,7 +52,7 @@ function! s:get_abstract_completer() abort " {{{
           \ a:args,
           \)
     let candidates = filter(
-          \ candidates,
+          \ deepcopy(candidates),
           \ printf('v:val =~# "^%s"', a:arglead),
           \)
     return candidates
