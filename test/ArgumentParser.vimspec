@@ -876,7 +876,7 @@ Describe ArgumentParser
               \ 'b',
               \ 'b',
               \ [],
-              \ {},
+              \ {'foo': 'b'},
               \)
         Assert Equals(
               \ sort(candidates),
