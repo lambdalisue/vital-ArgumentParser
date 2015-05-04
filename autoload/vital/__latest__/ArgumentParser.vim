@@ -218,13 +218,6 @@ function! s:parser.parse(bang, range, ...) abort " {{{
         \ '__bang__': a:bang == '!',
         \ '__range__': a:range,
         \}, get(a:000, 1, {})))
-  " assign default values
-  let exists_pattern = printf('\v^%%(%s)$', join(keys(opts), '|'))
-  for argument in values(self.arguments)
-    if !empty(argument.default) && argument.name !~# exists_pattern
-      let opts[argument.name] = argument.default
-    endif
-  endfor
   " validation
   let opts = self._call_hook('pre_validation', opts)
   if self.validate_required
@@ -322,6 +315,13 @@ function! s:parser.parse_args(args, ...) abort " {{{
         \ opts.__args__[ cursor : ],
         \)
   return opts
+  " assign default values
+  let exists_pattern = printf('\v^%%(%s)$', join(keys(opts), '|'))
+  for argument in values(self.arguments)
+    if !empty(argument.default) && argument.name !~# exists_pattern
+      let opts[argument.name] = argument.default
+    endif
+  endfor
 endfunction " }}}
 function! s:parser._validate_required(opts) abort " {{{
   let exists_pattern = printf('\v^%%(%s)$', join(keys(a:opts), '|'))
