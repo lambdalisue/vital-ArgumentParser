@@ -214,38 +214,16 @@ function! s:parser.get_optional_argument_aliases() abort " {{{
 endfunction " }}}
 function! s:parser.parse(bang, range, ...) abort " {{{
   let cmdline = get(a:000, 0, '')
-  let opts = self.parse_cmdline(cmdline, extend({
-        \ '__bang__': a:bang == '!',
+  let args = s:P.is_string(cmdline) ? s:splitargs(cmdline) : cmdline
+  let opts = self._parse_args(args, extend({
+        \ '__bang__': s:P.is_string(a:bang) ? a:bang == '!' : a:bang,
         \ '__range__': a:range,
         \}, get(a:000, 1, {})))
-  " validation
-  let opts = self._call_hook('pre_validation', opts)
-  if self.validate_required
-    call self._validate_required(opts)
-  endif
-  if self.validate_types
-    call self._validate_types(opts)
-  endif
-  if self.validate_conflicts
-    call self._validate_conflicts(opts)
-  endif
-  if self.validate_superordinates
-    call self._validate_superordinates(opts)
-  endif
-  if self.validate_dependencies
-    call self._validate_dependencies(opts)
-  endif
-  if self.validate_pattern
-    call self._validate_pattern(opts)
-  endif
-  let opts = self._call_hook('post_validation', opts)
+  call self._regulate_opts(opts)
+  call self._validate_opts(opts)
   return opts
 endfunction " }}}
-function! s:parser.parse_cmdline(cmdline, ...) abort " {{{
-  let args = s:splitargs(a:cmdline)
-  return call(self.parse_args, [args] + a:000, self)
-endfunction " }}}
-function! s:parser.parse_args(args, ...) abort " {{{
+function! s:parser._parse_args(args, ...) abort " {{{
   let opts = extend({
         \ '__unknown__': [],
         \ '__args__': [],
@@ -315,13 +293,35 @@ function! s:parser.parse_args(args, ...) abort " {{{
         \ opts.__args__[ cursor : ],
         \)
   return opts
+endfunction " }}}
+function! s:parser._regulate_opts(opts) abort " {{{
   " assign default values
-  let exists_pattern = printf('\v^%%(%s)$', join(keys(opts), '|'))
+  let exists_pattern = printf('\v^%%(%s)$', join(keys(a:opts), '|'))
   for argument in values(self.arguments)
     if !empty(argument.default) && argument.name !~# exists_pattern
-      let opts[argument.name] = argument.default
+      let a:opts[argument.name] = argument.default
     endif
   endfor
+endfunction " }}}
+function! s:parser._validate_opts(opts) abort " {{{
+  if self.validate_required
+    call self._validate_required(a:opts)
+  endif
+  if self.validate_types
+    call self._validate_types(a:opts)
+  endif
+  if self.validate_conflicts
+    call self._validate_conflicts(a:opts)
+  endif
+  if self.validate_superordinates
+    call self._validate_superordinates(a:opts)
+  endif
+  if self.validate_dependencies
+    call self._validate_dependencies(a:opts)
+  endif
+  if self.validate_pattern
+    call self._validate_pattern(a:opts)
+  endif
 endfunction " }}}
 function! s:parser._validate_required(opts) abort " {{{
   let exists_pattern = printf('\v^%%(%s)$', join(keys(a:opts), '|'))
@@ -432,27 +432,31 @@ function! s:parser._validate_pattern(opts) abort " {{{
     silent! unlet value
   endfor
 endfunction " }}}
-function! s:parser.complete(arglead, cmdline, cursorpos, opts) abort " {{{
+function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
+  let opts = extend(
+        \ self._parse_args(s:splitargs(a:cmdline)),
+        \ get(a:000, 0, {}),
+        \)
   if a:arglead =~# '\v^\-\-?[^=]+\='
     return self._complete_optional_argument_value(
           \ a:arglead,
           \ a:cmdline,
           \ a:cursorpos,
-          \ a:opts,
+          \ opts,
           \)
   elseif a:arglead =~# '\v^\-\-?'
     return self._complete_optional_argument(
           \ a:arglead,
           \ a:cmdline,
           \ a:cursorpos,
-          \ a:opts,
+          \ opts,
           \)
   else
     return self._complete_positional_argument_value(
           \ a:arglead,
           \ a:cmdline,
           \ a:cursorpos,
-          \ a:opts,
+          \ opts,
           \)
   endif
 endfunction " }}}
