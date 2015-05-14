@@ -820,7 +820,7 @@ Describe ArgumentParser
     End
     Context ._complete_optional_argument({arglead}, {cmdline}, {cursorpos}, {opts})
       Before
-        let parser = s:A.new()
+        let parser = s:A.new({ 'auto_help': 0 })
         call parser.add_argument('--foo')
         call parser.add_argument('--foobar', { 'alias': 'f' })
         call parser.add_argument('--bar', { 'conflicts': ['hoge'] })
@@ -886,15 +886,15 @@ Describe ArgumentParser
     End
     Context ._complete_positional_argument_value({arglead}, {cmdline}, {cursorpos}, {opts})
       Before
-        let parser = s:A.new()
+        let parser = s:A.new({ 'auto_help': 0 })
         call parser.add_argument('foo', { 'choices': ['aa', 'ab', 'ac', 'bb', 'bc', 'bd'] })
         call parser.add_argument('bar', { 'choices': ['e', 'f', 'g'] })
       End
       It should return all posible values of a corresponding positional argument
         let candidates = parser._complete_positional_argument_value(
               \ '',
-              \ '',
-              \ [],
+              \ 'ArgumentParse ',
+              \ 15,
               \ {},
               \)
         Assert Equals(
@@ -904,8 +904,8 @@ Describe ArgumentParser
 
         let candidates = parser._complete_positional_argument_value(
               \ '',
-              \ '',
-              \ [],
+              \ 'ArgumentParse aa ',
+              \ 18,
               \ { 'foo': 'aa' },
               \)
         Assert Equals(
@@ -916,8 +916,8 @@ Describe ArgumentParser
       It should return eliminated values if a part of positional argument value is specified
         let candidates = parser._complete_positional_argument_value(
               \ 'b',
-              \ 'b',
-              \ [],
+              \ 'ArgumentParse b',
+              \ 16,
               \ {'foo': 'b'},
               \)
         Assert Equals(
@@ -929,7 +929,7 @@ Describe ArgumentParser
 
     Context .help()
       Before
-        let parser = s:A.new({ 'name': 'Foo', 'description': 'bar bar bar' })
+        let parser = s:A.new({ 'name': 'Foo', 'description': 'bar bar bar', 'auto_help': 0 })
         call parser.add_argument('--foo', 'foo definition')
         call parser.add_argument('--bar', '-b', 'bar definition')
         call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })

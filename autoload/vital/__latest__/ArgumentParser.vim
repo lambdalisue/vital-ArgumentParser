@@ -495,8 +495,9 @@ function! s:parser._validate_pattern(opts) abort " {{{
   endfor
 endfunction " }}}
 function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
+  let cmdline = substitute(a:cmdline, '^[^ ]+\s?', '', '')
   let opts = extend(
-        \ self._parse_args(s:splitargs(a:cmdline)),
+        \ self._parse_args(s:splitargs(cmdline)),
         \ get(a:000, 0, {}),
         \)
   call self._call_hook('pre_completion', opts)
@@ -504,34 +505,34 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
     let candidates = []
     let candidates += self._complete_positional_argument_value(
           \ a:arglead,
-          \ a:cmdline,
+          \ cmdline,
           \ a:cursorpos,
           \ opts,
           \)
     let candidates += self._complete_optional_argument(
           \ a:arglead,
-          \ a:cmdline,
+          \ cmdline,
           \ a:cursorpos,
           \ opts,
           \)
   elseif a:arglead =~# '\v^\-\-?[^=]+\='
     let candidates = self._complete_optional_argument_value(
           \ a:arglead,
-          \ a:cmdline,
+          \ cmdline,
           \ a:cursorpos,
           \ opts,
           \)
   elseif a:arglead =~# '\v^\-\-?'
     let candidates = self._complete_optional_argument(
           \ a:arglead,
-          \ a:cmdline,
+          \ cmdline,
           \ a:cursorpos,
           \ opts,
           \)
   else
     let candidates = self._complete_positional_argument_value(
           \ a:arglead,
-          \ a:cmdline,
+          \ cmdline,
           \ a:cursorpos,
           \ opts,
           \)
@@ -582,7 +583,10 @@ function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorp
       let npositional += 1
     endif
   endfor
-  let cpositional = get(self.arguments, get(self.positional, npositional, -1), {})
+  if empty(a:arglead)
+    let npositional -= 1
+  endif
+  let cpositional = get(self.arguments, get(self.positional, npositional), {})
   if !empty(cpositional)
     let candidates = cpositional.completer.complete(
           \ a:arglead,
