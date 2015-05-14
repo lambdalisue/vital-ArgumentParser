@@ -926,7 +926,7 @@ Describe ArgumentParser
 
     Context .help()
       Before
-        let parser = s:A.new({ 'command': 'Foo', 'description': 'bar bar bar' })
+        let parser = s:A.new({ 'name': 'Foo', 'description': 'bar bar bar' })
         call parser.add_argument('--foo', 'foo definition')
         call parser.add_argument('--bar', '-b', 'bar definition')
         call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })

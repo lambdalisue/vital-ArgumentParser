@@ -465,8 +465,21 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
         \ get(a:000, 0, {}),
         \)
   call self._call_hook('pre_completion', opts)
-  let candidates = []
-  if a:arglead =~# '\v^\-\-?[^=]+\='
+  if empty(a:arglead)
+    let candidates = []
+    let candidates += self._complete_positional_argument_value(
+          \ a:arglead,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ opts,
+          \)
+    let candidates += self._complete_optional_argument(
+          \ a:arglead,
+          \ a:cmdline,
+          \ a:cursorpos,
+          \ opts,
+          \)
+  elseif a:arglead =~# '\v^\-\-?[^=]+\='
     let candidates = self._complete_optional_argument_value(
           \ a:arglead,
           \ a:cmdline,
@@ -489,6 +502,7 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
           \)
   endif
   call self._call_hook('post_completion', candidates, opts)
+  return candidates
 endfunction " }}}
 function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos, opts) abort " {{{
   let m = matchlist(a:arglead, '\v^\-\-?([^=]+)\=(.*)')
@@ -578,31 +592,33 @@ function! s:parser.help() abort " {{{
   let max_length = len(s:L.max_by(definitions.positional + definitions.optional, 'len(v:val)'))
   let buflines = []
   call add(buflines, printf(
-        \ ':%s %s %s',
+        \ ':%s', join([
         \ self.name,
         \ join(commandlines.positional),
         \ join(commandlines.optional),
-        \))
+        \])))
   call add(buflines, '')
   call add(buflines, self.description)
-  call add(buflines, '')
-  call add(buflines, 'Positional arguments:')
-  for [definition, description] in s:L.zip(definitions.positional, descriptions.positional)
-    let _definitions = split(definition, "\n")
-    let _descriptions = split(description, "\n")
-    let n = max([len(_definitions), len(_descriptions)])
-    let i = 0
-    while i < n
-      let _definition = get(_definitions, i, '')
-      let _description = get(_descriptions, i, '')
-      call add(buflines, printf(
-            \ printf("  %%-%ds  %%s", max_length),
-            \ _definition,
-            \ _description,
-            \))
-      let i += 1
-    endwhile
-  endfor
+  if !empty(self.positional)
+    call add(buflines, '')
+    call add(buflines, 'Positional arguments:')
+    for [definition, description] in s:L.zip(definitions.positional, descriptions.positional)
+      let _definitions = split(definition, "\n")
+      let _descriptions = split(description, "\n")
+      let n = max([len(_definitions), len(_descriptions)])
+      let i = 0
+      while i < n
+        let _definition = get(_definitions, i, '')
+        let _description = get(_descriptions, i, '')
+        call add(buflines, printf(
+              \ printf("  %%-%ds  %%s", max_length),
+              \ _definition,
+              \ _description,
+              \))
+        let i += 1
+      endwhile
+    endfor
+  endif
   call add(buflines, "")
   call add(buflines, 'Optional arguments:')
   for [definition, description] in s:L.zip(definitions.optional, descriptions.optional)
