@@ -81,7 +81,7 @@ Describe ArgumentParser
   End
 
   Context Instance
-    Context .add_argument({name}[, {description}, {options}])
+    Context .add_argument({name}[, {alias}, {description}, {options}])
       Before
         let parser = s:A.new()
       End
@@ -101,6 +101,12 @@ Describe ArgumentParser
         Assert KeyExists(ret, 'dependencies')
         Assert KeyExists(ret, 'completer')
         Assert KeyExists(ret, 'terminal')
+
+        let ret = parser.add_argument('--bar', 'description of bar')
+        Assert Equals(ret.description, 'description of bar')
+
+        let ret = parser.add_argument('--hoge', '-h', 'description of hoge')
+        Assert Equals(ret.alias, 'h')
       End
       It should assign an argument with a specified name
         call parser.add_argument('--foo')
@@ -915,6 +921,108 @@ Describe ArgumentParser
               \ sort(candidates),
               \ sort(['bb', 'bc', 'bd']),
               \)
+      End
+    End
+
+    Context .help()
+      Before
+        let parser = s:A.new({ 'command': 'Foo', 'description': 'bar bar bar' })
+        call parser.add_argument('--foo', 'foo definition')
+        call parser.add_argument('--bar', '-b', 'bar definition')
+        call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })
+        call parser.add_argument('--piyo', 'piyo definition', { 'type': s:A.types.value })
+        call parser.add_argument('--puyo', 'puyo definition', { 'choices': ['A', 'B', 'C'] })
+        call parser.add_argument('--papa', 'papa definition', { 'deniable': 1 } )
+        call parser.add_argument('--mama', 'mama definition', { 'required': 1 } )
+        call parser.add_argument('alpha', 'alpha definition')
+        call parser.add_argument('beta', 'beta definition', { 'required': 1 })
+      End
+      It should return a help
+        let ret = parser.help()
+        let exp = [
+              \ ':Foo [alpha] beta [--foo] [--bar] [--hoge[=HOGE]] [--piyo=PIYO] [--puyo={PUYO}] [--[no-]papa] --mama',
+              \ '',
+              \ 'bar bar bar',
+              \ '',
+              \ 'Positional arguments:',
+              \ '  alpha              alpha definition',
+              \ '  beta               beta definition (*)',
+              \ '',
+              \ 'Optional arguments:',
+              \ '      --foo          foo definition',
+              \ '  -b, --bar          bar definition',
+              \ '      --hoge[=HOGE]  hoge definition',
+              \ '      --piyo=PIYO    piyo definition',
+              \ '      --puyo={PUYO}  puyo definition',
+              \ '      --[no-]papa    papa definition',
+              \ '      --mama         mama definition (*)',
+              \]
+        Assert Equals(ret, join(exp, "\n"))
+      End
+    End
+    Context ._help_optional_argument({arg})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', 'foo definition')
+        call parser.add_argument('--bar', '-b', 'bar definition')
+        call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })
+        call parser.add_argument('--piyo', 'piyo definition', { 'type': s:A.types.value })
+        call parser.add_argument('--puyo', 'puyo definition', { 'choices': ['A', 'B', 'C'] })
+        call parser.add_argument('--papa', 'papa definition', { 'deniable': 1 } )
+        call parser.add_argument('--mama', 'mama definition', { 'required': 1 } )
+        call parser.add_argument('alpha', 'alpha definition')
+        call parser.add_argument('beta', 'beta definition', { 'required': 1 })
+      End
+      It should return [{definition], {description}] list of a specified argument
+        let ret = parser._help_optional_argument(parser.arguments['foo'])
+        Assert Equals(ret[0], '    --foo')
+        Assert Equals(ret[1], 'foo definition')
+
+        let ret = parser._help_optional_argument(parser.arguments['bar'])
+        Assert Equals(ret[0], '-b, --bar')
+        Assert Equals(ret[1], 'bar definition')
+
+        let ret = parser._help_optional_argument(parser.arguments['hoge'])
+        Assert Equals(ret[0], '    --hoge[=HOGE]')
+        Assert Equals(ret[1], 'hoge definition')
+
+        let ret = parser._help_optional_argument(parser.arguments['piyo'])
+        Assert Equals(ret[0], '    --piyo=PIYO')
+        Assert Equals(ret[1], 'piyo definition')
+
+        let ret = parser._help_optional_argument(parser.arguments['puyo'])
+        Assert Equals(ret[0], '    --puyo={PUYO}')
+        Assert Equals(ret[1], 'puyo definition')
+
+        let ret = parser._help_optional_argument(parser.arguments['papa'])
+        Assert Equals(ret[0], '    --[no-]papa')
+        Assert Equals(ret[1], 'papa definition')
+
+        let ret = parser._help_optional_argument(parser.arguments['mama'])
+        Assert Equals(ret[0], '    --mama')
+        Assert Equals(ret[1], 'mama definition (*)')
+      End
+    End
+    Context ._help_positional_argument({arg})
+      Before
+        let parser = s:A.new()
+        call parser.add_argument('--foo', 'foo definition')
+        call parser.add_argument('--bar', '-b', 'bar definition')
+        call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })
+        call parser.add_argument('--piyo', 'piyo definition', { 'type': s:A.types.value })
+        call parser.add_argument('--puyo', 'puyo definition', { 'choices': ['A', 'B', 'C'] })
+        call parser.add_argument('--papa', 'papa definition', { 'deniable': 1 } )
+        call parser.add_argument('--mama', 'mama definition', { 'required': 1 } )
+        call parser.add_argument('alpha', 'alpha definition')
+        call parser.add_argument('beta', 'beta definition', { 'required': 1 })
+      End
+      It should return [{definition], {description}] list of a specified argument
+        let ret = parser._help_positional_argument(parser.arguments['alpha'])
+        Assert Equals(ret[0], 'alpha')
+        Assert Equals(ret[1], 'alpha definition')
+        let ret = parser._help_positional_argument(parser.arguments['beta'])
+        Assert Equals(ret[0], 'beta')
+        Assert Equals(ret[1], 'beta definition (*)')
       End
     End
   End

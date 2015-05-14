@@ -9,7 +9,7 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! s:_vital_loaded(V) dict abort
+function! s:_vital_loaded(V) dict abort " {{{
   let s:P = a:V.import('Prelude')
   let s:D = a:V.import('Data.Dict')
   let s:L = a:V.import('Data.List')
@@ -24,11 +24,12 @@ function! s:_vital_loaded(V) dict abort
   lockvar s:const
 
   call extend(self, s:const)
-endfunction
-function! s:_vital_depends() abort
+endfunction " }}}
+function! s:_vital_depends() abort " {{{
   return ['Prelude', 'Data.Dict', 'Data.List', 'ArgumentParser.Completer']
-endfunction
+endfunction " }}}
 
+" Public functions
 function! s:splitargs(str) abort " {{{
   let single_quote = '\v''\zs[^'']+\ze'''
   let double_quote = '\v"\zs[^"]+\ze"'
@@ -49,18 +50,28 @@ function! s:strip_quotes(str) abort " {{{
 endfunction " }}}
 function! s:new(...) abort " {{{
   let options = extend({
+        \ 'command': '',
         \ 'description': '',
         \}, get(a:000, 0, {}))
   let parser = extend(deepcopy(s:parser), s:D.pick(options, [
+        \ 'command',
         \ 'description',
         \ 'enable_positional_assign',
         \]))
   return parser
 endfunction " }}}
 
+" Backward compatible
+function! s:shellwords(str) abort " {{{
+  echoerr 'vital: ArgumentParser: ArgumentParser.shellwords is deprecated. Use ArgumentParser.splitargs instead.'
+  return s:splitargs(a:str)
+endfunction " }}}
+
+" Instance
 let s:parser = {
       \ 'hooks': {},
       \ 'arguments': {},
+      \ '_arguments': [],
       \ 'positional': [],
       \ 'required': [],
       \ 'alias': {},
@@ -89,19 +100,33 @@ function! s:parser.add_argument(name, ...) abort " {{{
   endif
   " determind arguments
   if a:0 == 0
+    let alias = ''
     let description = ''
     let options = {}
   elseif a:0 == 1
     if s:P.is_string(a:1)
+      let alias = ''
       let description = a:1
       let options = {}
     else
+      let alias = ''
       let description = ''
       let options = a:1
     endif
   elseif a:0 == 2
-    let description = a:1
-    let options = a:2
+    if s:P.is_string(a:2)
+      let alias = a:1
+      let description = a:2
+      let options = {}
+    else
+      let alias = ''
+      let description = a:1
+      let options = a:2
+    endif
+  elseif a:0 == 3
+    let alias = a:1
+    let description = a:2
+    let options = a:3
   else
     throw 'vital: ArgumentParser: too much arguments are specified'
   endif
@@ -109,11 +134,12 @@ function! s:parser.add_argument(name, ...) abort " {{{
   " create an argument instance
   let argument = extend({
         \ 'name': name,
+        \ 'description': description,
         \ 'terminal': 0,
         \ 'positional': positional,
         \ 'required': 0,
         \ 'default': '',
-        \ 'alias': '',
+        \ 'alias': substitute(alias, '^-', '', ''),
         \ 'type': -1,
         \ 'deniable': 0,
         \ 'choices': choices,
@@ -156,6 +182,7 @@ function! s:parser.add_argument(name, ...) abort " {{{
   endif
   " register argument
   let self.arguments[name] = argument
+  call add(self._arguments, argument)
   " register positional
   if positional
     call add(self.positional, argument.name)
@@ -516,6 +543,139 @@ function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorp
           \)
   endif
   return candidates
+endfunction " }}}
+
+function! s:parser.help() abort " {{{
+  let definitions  = { 'positional': [], 'optional': [] }
+  let descriptions = { 'positional': [], 'optional': [] }
+  let commandlines = { 'positional': [], 'optional': [] }
+  for argument in self._arguments
+    if argument.positional
+      let [definition, description] = self._help_positional_argument(argument)
+      call add(definitions.positional, definition)
+      call add(descriptions.positional, description)
+      if argument.required
+        call add(commandlines.positional, definition)
+      else
+        call add(commandlines.positional, printf('[%s]', definition))
+      endif
+    else
+      let [definition, description] = self._help_optional_argument(argument)
+      let partial_definition = substitute(definition, '\v^%([ ]+|\-.,\s)', '', '')
+      call add(definitions.optional, definition)
+      call add(descriptions.optional, description)
+      if argument.required
+        call add(commandlines.optional, printf('%s', partial_definition))
+      else
+        call add(commandlines.optional, printf('[%s]', partial_definition))
+      endif
+    endif
+  endfor
+  " find a length of the longest definition
+  let max_length = len(s:L.max_by(definitions.positional + definitions.optional, 'len(v:val)'))
+  let buflines = []
+  call add(buflines, printf(
+        \ ':%s %s %s',
+        \ self.command,
+        \ join(commandlines.positional),
+        \ join(commandlines.optional),
+        \))
+  call add(buflines, '')
+  call add(buflines, self.description)
+  call add(buflines, '')
+  call add(buflines, 'Positional arguments:')
+  for [definition, description] in s:L.zip(definitions.positional, descriptions.positional)
+    let _definitions = split(definition, "\n")
+    let _descriptions = split(description, "\n")
+    let n = max([len(_definitions), len(_descriptions)])
+    let i = 0
+    while i < n
+      let _definition = get(_definitions, i, '')
+      let _description = get(_descriptions, i, '')
+      call add(buflines, printf(
+            \ printf("  %%-%ds  %%s", max_length),
+            \ _definition,
+            \ _description,
+            \))
+      let i += 1
+    endwhile
+  endfor
+  call add(buflines, "")
+  call add(buflines, 'Optional arguments:')
+  for [definition, description] in s:L.zip(definitions.optional, descriptions.optional)
+    let _definitions = split(definition, "\n")
+    let _descriptions = split(description, "\n")
+    let n = max([len(_definitions), len(_descriptions)])
+    let i = 0
+    while i < n
+      let _definition = get(_definitions, i, '')
+      let _description = get(_descriptions, i, '')
+      call add(buflines, printf(
+            \ printf("  %%-%ds  %%s", max_length),
+            \ _definition,
+            \ _description,
+            \))
+      let i += 1
+    endwhile
+  endfor
+  return join(buflines, "\n")
+endfunction " }}}
+function! s:parser._help_optional_argument(arg) abort " {{{
+  if empty(a:arg.alias)
+    let alias = '    '
+  else
+    let alias = printf('-%s, ', a:arg.alias)
+  endif
+  if a:arg.deniable
+    let deniable = '[no-]'
+  else
+    let deniable = ''
+  endif
+  if a:arg.type == s:const.types.any
+    let definition = printf(
+          \ '%s--%s%s[=%s]',
+          \ alias,
+          \ deniable,
+          \ a:arg.name,
+          \ toupper(a:arg.name)
+          \)
+  elseif a:arg.type == s:const.types.value
+    let definition = printf(
+          \ '%s--%s%s=%s',
+          \ alias,
+          \ deniable,
+          \ a:arg.name,
+          \ toupper(a:arg.name)
+          \)
+  elseif a:arg.type == s:const.types.choice
+    let definition = printf(
+          \ '%s--%s%s={%s}',
+          \ alias,
+          \ deniable,
+          \ a:arg.name,
+          \ toupper(a:arg.name)
+          \)
+  else
+    let definition = printf(
+          \ '%s--%s%s',
+          \ alias,
+          \ deniable,
+          \ a:arg.name,
+          \)
+  endif
+  let description = a:arg.description
+  if a:arg.required
+    let description = printf('%s (*)', description)
+  endif
+  return [definition, description]
+endfunction " }}}
+function! s:parser._help_positional_argument(arg) abort " {{{
+  let definition = printf('%s', a:arg.name)
+  let description = a:arg.description
+  if a:arg.required
+    let description = printf('%s (*)', description)
+  endif
+  return [definition, description]
 endfunction " }}}
 
 let &cpo = s:save_cpo
