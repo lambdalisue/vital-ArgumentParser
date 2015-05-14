@@ -41,38 +41,16 @@ Hooks			|Vital.ArgumentParser-hooks|
 ==============================================================================
 INTRODUCTIONS				*Vital.ArgumentParser-introductions*
 
-*Vital.ArgumentParser* is a high functional argument (option) parser.
-The following features are available:
-
-1. Positional arguments and optional arguments are supported
-2. Optional argument behavior can be regulated with 'type' option.
-   |Vital.ArgumentParser-kinds-switch| does not take any value,
-   |Vital.ArgumentParser-kinds-value| requires a value,
-   |Vital.ArgumentParser-kinds-any| can be used as a switch or value, and
-   |Vital.ArgumentParser-kinds-choice| requires a value listed in 'choices'
-   option
-3. When more than two conflicted arguments are specified, it will tell the
-   user that these arguments are conflicted and cannot be used in the same
-   time (See |Vital.ArgumentParser-conflicts|)
-4. Arguments can be defined as subordinations. The subordination arguments
-   cannot be specified without parents (See
-   |Vital.ArgumentParser-subordination_of|)
-5. Arguments can depend on several other arguments. The argument cannot be
-   specified while all dependencies are resolved (See
-   |Vital.ArgumentParser-depend_on|)
-6. There are several validations and you can control which validations should
-   be performed (See |Vital.ArgumentParser-validation|)
-7. There are several hooks to manipulate the arguments in each steps (See
-   |Vital.ArgumentParser-hooks|)
+*Vital.ArgumentParser* is a high functional argument (option) parser which
+concept was taken from |Vital.OptionParser| and argparse.ArgumentParser of
+Python.
 
 
 ==============================================================================
 USAGE					*Vital.ArgumentParser-usage*
 
 Create a new instance of a parser with |Vital.ArgumentParser.new()| function.
-Then define arguments with |Vital.ArgumentParser.add_argument()|. If you need,
-you can define hooks (|Vital.ArgumentParser-hooks|) in this time.
-This library's interface is inspired by ArgumentParser in Python.
+Then define arguments with |Vital.ArgumentParser-instance.add_argument()|.
 >
 	let s:V = vital#of('vital')
 	let s:P = s:V.import('ArgumentParser')

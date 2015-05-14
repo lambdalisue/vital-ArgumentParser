@@ -55,19 +55,33 @@ function! s:new(...) abort " {{{
   let options = extend({
         \ 'name': '',
         \ 'description': '',
+        \ 'auto_help': 1,
+        \ 'validate_required': 1,
+        \ 'validate_types': 1,
+        \ 'validate_conflicts': 1,
+        \ 'validate_superordinates': 1,
+        \ 'validate_dependencies': 1,
+        \ 'validate_pattern': 1,
+        \ 'enable_positional_assign': 0,
         \}, get(a:000, 0, {}))
   let parser = extend(deepcopy(s:parser), s:D.pick(options, [
         \ 'name',
         \ 'description',
+        \ 'auto_help',
+        \ 'validate_required',
+        \ 'validate_types',
+        \ 'validate_conflicts',
+        \ 'validate_superordinates',
+        \ 'validate_dependencies',
+        \ 'validate_pattern',
         \ 'enable_positional_assign',
         \]))
+  if parser.auto_help
+    call parser.add_argument(
+          \ '--help', '-h', 'show this help',
+          \)
+  endif
   return parser
-endfunction " }}}
-
-" Backward compatible
-function! s:shellwords(str) abort " {{{
-  echoerr 'vital: ArgumentParser: ArgumentParser.shellwords is deprecated. Use ArgumentParser.splitargs instead.'
-  return s:splitargs(a:str)
 endfunction " }}}
 
 " Instance
@@ -78,12 +92,6 @@ let s:parser = {
       \ 'positional': [],
       \ 'required': [],
       \ 'alias': {},
-      \ 'validate_required': 1,
-      \ 'validate_types': 1,
-      \ 'validate_conflicts': 1,
-      \ 'validate_superordinates': 1,
-      \ 'validate_dependencies': 1,
-      \ 'validate_pattern': 1,
       \}
 function! s:parser._call_hook(name, ...) abort " {{{
   if has_key(self.hooks, a:name)
@@ -253,8 +261,27 @@ function! s:parser.parse(bang, range, ...) abort " {{{
         \ '__range__': a:range,
         \}, get(a:000, 1, {})))
   call self._regulate_opts(opts)
+  " to avoid exception in validation
+  if self.auto_help && get(opts, 'help', 0)
+    redraw | echo self.help()
+    return {}
+  endif
   call self._call_hook('pre_validation', opts)
-  call self._validate_opts(opts)
+  try
+    call self._validate_opts(opts)
+  catch /vital: ArgumentParser:/
+    echohl WarningMsg
+    redraw
+    echo printf('%s validation error:', self.name)
+    echohl None
+    echo substitute(v:exception, '^vital: ArgumentParser: ', '', '')
+    if self.auto_help
+      echo printf("See a command usage by ':%s -h'",
+            \ self.name,
+            \)
+    endif
+    return {}
+  endtry
   call self._call_hook('post_validation', opts)
   return opts
 endfunction " }}}
@@ -363,7 +390,7 @@ function! s:parser._validate_required(opts) abort " {{{
   for name in self.required
     if name !~# exists_pattern
       throw printf(
-            \ 'vital: ArgumentParser: "%s" argument is required but not specified.',
+            \ 'vital: ArgumentParser: Argument "%s" is required but not specified.',
             \ name,
             \)
     endif
@@ -375,12 +402,12 @@ function! s:parser._validate_types(opts) abort " {{{
       let type = self.arguments[name].type
       if type == s:const.types.value && s:P.is_number(value)
         throw printf(
-              \ 'vital: ArgumentParser: "%s" argument is VALUE argument but no value is specified.',
+              \ 'vital: ArgumentParser: Argument "%s" is VALUE argument but no value is specified.',
               \ name,
               \)
       elseif type == s:const.types.switch && s:P.is_string(value)
         throw printf(
-              \ 'vital: ArgumentParser: "%s" argument is SWITCH argument but "%s" is specified.',
+              \ 'vital: ArgumentParser: Argument "%s" is SWITCH argument but "%s" is specified.',
               \ name,
               \ value,
               \)
@@ -388,12 +415,12 @@ function! s:parser._validate_types(opts) abort " {{{
         let pattern = printf('\v^%%(%s)$', join(self.arguments[name].choices, '|'))
         if s:P.is_number(value)
           throw printf(
-                \ 'vital: ArgumentParser: "%s" argument is CHOICE argument but no value is specified.',
+                \ 'vital: ArgumentParser: Argument "%s" is CHOICE argument but no value is specified.',
                 \ name,
                 \)
         elseif value !~# pattern
           throw printf(
-                \ 'vital: ArgumentParser: "%s" argument is CHOICE argument but an invalid value "%s" is specified.',
+                \ 'vital: ArgumentParser: Argument "%s" is CHOICE argument but an invalid value "%s" is specified.',
                 \ name,
                 \ value,
                 \)
@@ -410,7 +437,7 @@ function! s:parser._validate_conflicts(opts) abort " {{{
       let conflicts = self.get_conflicted_arguments(name, a:opts)
       if !empty(conflicts)
         throw printf(
-              \ 'vital: ArgumentParser: "%s" argument conflicts with "%s"',
+              \ 'vital: ArgumentParser: Argument "%s" conflicts with an argument "%s"',
               \ name,
               \ conflicts[0],
               \)
@@ -426,7 +453,7 @@ function! s:parser._validate_superordinates(opts) abort " {{{
       let superordinates = self.get_superordinate_arguments(name, a:opts)
       if !empty(self.arguments[name].superordinates) && empty(superordinates)
         throw printf(
-              \ 'vital: ArgumentParser: No superordinate argument of "%s" is specified',
+              \ 'vital: ArgumentParser: No superordinate argument(s) of "%s" is specified',
               \ name,
               \)
       endif
@@ -441,7 +468,7 @@ function! s:parser._validate_dependencies(opts) abort " {{{
       let dependencies = self.get_missing_dependencies(name, a:opts)
       if !empty(dependencies)
         throw printf(
-              \ 'vital: ArgumentParser: "%s" argument is required for "%s" but missing',
+              \ 'vital: ArgumentParser: Argument "%s" is required for an argument "%s" but missing',
               \ dependencies[0],
               \ name,
               \)
@@ -457,7 +484,7 @@ function! s:parser._validate_pattern(opts) abort " {{{
       let pattern = self.arguments[name].pattern
       if !empty(pattern) && value !~# pattern
         throw printf(
-              \ 'vital: ArgumentParser: A value of "%s" argument does not a specified pattern "%s".',
+              \ 'vital: ArgumentParser: A value of argument "%s" does not follow a specified pattern "%s".',
               \ name,
               \ pattern,
               \)
@@ -549,15 +576,12 @@ function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, opts
 endfunction " }}}
 function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorpos, opts) abort " {{{
   let candidates = []
-  let npositional = 0
+  let npositional = -1
   for argument in values(self.arguments)
     if argument.positional && has_key(a:opts, argument.name)
       let npositional += 1
     endif
   endfor
-  if len(a:arglead) > 0
-    let npositional -= 1
-  endif
   let cpositional = get(self.arguments, get(self.positional, npositional, -1), {})
   if !empty(cpositional)
     let candidates = cpositional.completer.complete(
