@@ -103,9 +103,12 @@ Describe ArgumentParser
         Assert KeyExists(ret, 'terminal')
 
         let ret = parser.add_argument('--bar', 'description of bar')
-        Assert Equals(ret.description, 'description of bar')
+        Assert Equals(ret.description, ['description of bar'])
 
         let ret = parser.add_argument('--hoge', '-h', 'description of hoge')
+        Assert Equals(ret.alias, 'h')
+
+        let ret = parser.add_argument('--hoge', '-h', ['description of hoge'])
         Assert Equals(ret.alias, 'h')
       End
       It should assign an argument with a specified name

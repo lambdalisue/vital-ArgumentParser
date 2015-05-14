@@ -28,6 +28,9 @@ endfunction " }}}
 function! s:_vital_depends() abort " {{{
   return ['Prelude', 'Data.Dict', 'Data.List', 'ArgumentParser.Completer']
 endfunction " }}}
+function! s:_ensure_list(x) abort " {{{
+  return s:P.is_list(a:x) ? a:x : [a:x]
+endfunction " }}}
 
 " Public functions
 function! s:splitargs(str) abort " {{{
@@ -97,12 +100,14 @@ function! s:parser.add_argument(name, ...) abort " {{{
     let name = a:name
   endif
   " determind arguments
-  if a:0 == 0
+  if a:0 == 0 " add_argument({name})
     let alias = ''
     let description = ''
     let options = {}
   elseif a:0 == 1
-    if s:P.is_string(a:1)
+    " add_argument({name}, {description})
+    " add_argument({name}, {options})
+    if s:P.is_string(a:1) || s:P.is_list(a:1)
       let alias = ''
       let description = a:1
       let options = {}
@@ -112,16 +117,19 @@ function! s:parser.add_argument(name, ...) abort " {{{
       let options = a:1
     endif
   elseif a:0 == 2
-    if s:P.is_string(a:2)
+    " add_argument({name}, {alias}, {description})
+    " add_argument({name}, {description}, {options})
+    if s:P.is_string(a:2) || s:P.is_list(a:2)
       let alias = a:1
       let description = a:2
       let options = {}
-    else
+    elseif s:P.is_dict(a:2)
       let alias = ''
       let description = a:1
       let options = a:2
     endif
   elseif a:0 == 3
+    " add_argument({name}, {alias}, {description}, {options})
     let alias = a:1
     let description = a:2
     let options = a:3
@@ -132,7 +140,7 @@ function! s:parser.add_argument(name, ...) abort " {{{
   " create an argument instance
   let argument = extend({
         \ 'name': name,
-        \ 'description': description,
+        \ 'description': s:_ensure_list(description),
         \ 'terminal': 0,
         \ 'positional': positional,
         \ 'required': 0,
@@ -682,7 +690,7 @@ function! s:parser._help_optional_argument(arg) abort " {{{
           \ a:arg.name,
           \)
   endif
-  let description = a:arg.description
+  let description = join(a:arg.description, "\n")
   if a:arg.required
     let description = printf('%s (*)', description)
   endif
@@ -690,7 +698,7 @@ function! s:parser._help_optional_argument(arg) abort " {{{
 endfunction " }}}
 function! s:parser._help_positional_argument(arg) abort " {{{
   let definition = printf('%s', a:arg.name)
-  let description = a:arg.description
+  let description = join(a:arg.description, "\n")
   if a:arg.required
     let description = printf('%s (*)', description)
   endif
