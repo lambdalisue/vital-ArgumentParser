@@ -50,11 +50,11 @@ function! s:strip_quotes(str) abort " {{{
 endfunction " }}}
 function! s:new(...) abort " {{{
   let options = extend({
-        \ 'command': '',
+        \ 'name': '',
         \ 'description': '',
         \}, get(a:000, 0, {}))
   let parser = extend(deepcopy(s:parser), s:D.pick(options, [
-        \ 'command',
+        \ 'name',
         \ 'description',
         \ 'enable_positional_assign',
         \]))
@@ -82,12 +82,10 @@ let s:parser = {
       \ 'validate_dependencies': 1,
       \ 'validate_pattern': 1,
       \}
-function! s:parser._call_hook(name, opts) abort " {{{
-  let opts = a:opts
+function! s:parser._call_hook(name, ...) abort " {{{
   if has_key(self.hooks, a:name)
-    let opts = call(self.hooks[a:name], [opts], self)
+    call call(self.hooks[a:name], a:000, self)
   endif
-  return opts
 endfunction " }}}
 function! s:parser.add_argument(name, ...) abort " {{{
   " determind name
@@ -247,7 +245,9 @@ function! s:parser.parse(bang, range, ...) abort " {{{
         \ '__range__': a:range,
         \}, get(a:000, 1, {})))
   call self._regulate_opts(opts)
+  call self._call_hook('pre_validation', opts)
   call self._validate_opts(opts)
+  call self._call_hook('post_validation', opts)
   return opts
 endfunction " }}}
 function! s:parser._parse_args(args, ...) abort " {{{
@@ -464,28 +464,31 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
         \ self._parse_args(s:splitargs(a:cmdline)),
         \ get(a:000, 0, {}),
         \)
+  call self._call_hook('pre_completion', opts)
+  let candidates = []
   if a:arglead =~# '\v^\-\-?[^=]+\='
-    return self._complete_optional_argument_value(
+    let candidates = self._complete_optional_argument_value(
           \ a:arglead,
           \ a:cmdline,
           \ a:cursorpos,
           \ opts,
           \)
   elseif a:arglead =~# '\v^\-\-?'
-    return self._complete_optional_argument(
+    let candidates = self._complete_optional_argument(
           \ a:arglead,
           \ a:cmdline,
           \ a:cursorpos,
           \ opts,
           \)
   else
-    return self._complete_positional_argument_value(
+    let candidates = self._complete_positional_argument_value(
           \ a:arglead,
           \ a:cmdline,
           \ a:cursorpos,
           \ opts,
           \)
   endif
+  call self._call_hook('post_completion', candidates, opts)
 endfunction " }}}
 function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos, opts) abort " {{{
   let m = matchlist(a:arglead, '\v^\-\-?([^=]+)\=(.*)')
@@ -576,7 +579,7 @@ function! s:parser.help() abort " {{{
   let buflines = []
   call add(buflines, printf(
         \ ':%s %s %s',
-        \ self.command,
+        \ self.name,
         \ join(commandlines.positional),
         \ join(commandlines.optional),
         \))

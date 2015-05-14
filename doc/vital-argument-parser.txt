@@ -1,6 +1,6 @@
 *vital-argument-parser.txt*	A high functional argument parser
 
-Version: 0.1.0
+Version: 0.2.0
 Author:  Alisue <lambdalisue@hashnote.net>	*Vital.ArgumentParser-author*
 Support: Vim 7.3 and above
 License: MIT license  {{{
@@ -42,19 +42,18 @@ Hooks			|Vital.ArgumentParser-hooks|
 INTRODUCTIONS				*Vital.ArgumentParser-introductions*
 
 *Vital.ArgumentParser* is a high functional argument (option) parser.
-There is a |Vital.OptionParser| but this parser is much flexible while:
+The following features are available:
 
-1. Argument can be defined as a required argument. Validation will fail if not
-   all required arguments are specified.
-2. Argument behavior can be regulated with 'kind' option.
+1. Positional arguments and optional arguments are supported
+2. Optional argument behavior can be regulated with 'type' option.
    |Vital.ArgumentParser-kinds-switch| does not take any value,
-   |Vital.ArgumentParser-kinds-value| reqiure a value,
+   |Vital.ArgumentParser-kinds-value| requires a value,
    |Vital.ArgumentParser-kinds-any| can be used as a switch or value, and
-   |Vital.ArgumentParser-kinds-choice| require a value listed in 'choices'
+   |Vital.ArgumentParser-kinds-choice| requires a value listed in 'choices'
    option
 3. When more than two conflicted arguments are specified, it will tell the
    user that these arguments are conflicted and cannot be used in the same
-   time (See |Vital.ArgumentParser-conflict_with|)
+   time (See |Vital.ArgumentParser-conflicts|)
 4. Arguments can be defined as subordinations. The subordination arguments
    cannot be specified without parents (See
    |Vital.ArgumentParser-subordination_of|)
