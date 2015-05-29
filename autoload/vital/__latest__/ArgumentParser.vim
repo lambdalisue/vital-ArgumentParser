@@ -85,6 +85,33 @@ function! s:new(...) abort " {{{
 endfunction " }}}
 
 " Instance
+let s:argument = {
+      \ 'name': '',
+      \ 'description': [],
+      \ 'terminal': 0,
+      \ 'positional': 0,
+      \ 'required': 0,
+      \ 'default': '',
+      \ 'alias': '',
+      \ 'type': -1,
+      \ 'deniable': 0,
+      \ 'choices': [],
+      \ 'pattern': '',
+      \ 'conflicts': [],
+      \ 'dependencies': [],
+      \ 'superordinates': [],
+      \}
+function! s:argument.get_choices(opts) abort " {{{
+  if s:P.is_funcref(self.choices)
+    let candidates = self.choices(deepcopy(a:opts))
+  elseif s:P.is_list(self.choices)
+    let candidates = self.choices
+  else
+    let candidates = []
+  endif
+  return candidates
+endfunction " }}}
+
 let s:parser = {
       \ 'hooks': {},
       \ 'arguments': {},
@@ -144,27 +171,18 @@ function! s:parser.add_argument(name, ...) abort " {{{
   else
     throw 'vital: ArgumentParser: too much arguments are specified'
   endif
-  let choices = get(options, 'choices', [])
+  let Choices = get(options, 'choices', [])
   " create an argument instance
-  let argument = extend({
+  let argument = extend(deepcopy(s:argument), extend({
         \ 'name': name,
         \ 'description': s:_ensure_list(description),
-        \ 'terminal': 0,
         \ 'positional': positional,
-        \ 'required': 0,
-        \ 'default': '',
         \ 'alias': substitute(alias, '^-', '', ''),
-        \ 'type': -1,
-        \ 'deniable': 0,
-        \ 'choices': choices,
-        \ 'pattern': '',
-        \ 'conflicts': [],
-        \ 'dependencies': [],
-        \ 'superordinates': [],
-        \}, options)
+        \ 'choices': Choices,
+        \}, options))
   " automatically assign argument type
   if argument.type == -1
-    if !empty(argument.choices)
+    if s:P.is_funcref(Choices) || !empty(Choices)
       let argument.type = s:const.types.choice
     elseif !empty(argument.pattern)
       let argument.type = s:const.types.value
@@ -412,7 +430,8 @@ function! s:parser._validate_types(opts) abort " {{{
               \ value,
               \)
       elseif type == s:const.types.choice
-        let pattern = printf('\v^%%(%s)$', join(self.arguments[name].choices, '|'))
+        let candidates = self.arguments[name].get_choices(a:opts)
+        let pattern = printf('\v^%%(%s)$', join(candidates, '|'))
         if s:P.is_number(value)
           throw printf(
                 \ 'vital: ArgumentParser: Argument "%s" is CHOICE argument but no value is specified.',

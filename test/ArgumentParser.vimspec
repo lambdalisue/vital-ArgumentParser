@@ -101,6 +101,7 @@ Describe ArgumentParser
         Assert KeyExists(ret, 'dependencies')
         Assert KeyExists(ret, 'completer')
         Assert KeyExists(ret, 'terminal')
+        Assert KeyExists(ret, 'get_choices')
 
         let ret = parser.add_argument('--bar', 'description of bar')
         Assert Equals(ret.description, ['description of bar'])
@@ -578,6 +579,13 @@ Describe ArgumentParser
               \ 'type': s:A.types.choice,
               \ 'choices': ['a', 'b', 'c'],
               \})
+        function! s:_validate_types_choices(opts) abort " {{{
+          return ['e', 'f', 'g']
+        endfunction " }}}
+        call parser.add_argument('--puyo', {
+              \ 'type': s:A.types.choice,
+              \ 'choices': function('s:_validate_types_choices'),
+              \})
       End
       It should not raise any exceptions if all arguments are correctly specified
         let opts = {
@@ -613,6 +621,11 @@ Describe ArgumentParser
       It should raise an exception if an invalid value is specified to CHOICE argument
         let opts = {
               \ 'piyo': 'hogehoge',
+              \}
+        Throw parser._validate_types(opts), 'argument is CHOICE argument'
+
+        let opts = {
+              \ 'puyo': 'hogehoge',
               \}
         Throw parser._validate_types(opts), 'argument is CHOICE argument'
       End

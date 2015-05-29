@@ -11,6 +11,7 @@ set cpo&vim
 
 function! s:_vital_loaded(V) dict abort
   let s:P = a:V.import('System.Filepath')
+  let s:R = a:V.import('Prelude')
   call extend(self, s:const)
 endfunction
 function! s:_vital_depends() abort
@@ -92,7 +93,14 @@ function! s:_new_choice_completer(...) abort " {{{
         \}, get(a:000, 0, {}))
   let completer = s:get_abstract_completer()
   function! completer.gather_candidates(arglead, cmdline, cursorpos, args) abort
-    return self.choices
+    if s:R.is_funcref(self.choices)
+      let candidates = self.choices(deepcopy(a:args))
+    elseif s:R.is_list(self.choices)
+      let candidates = self.choices
+    else
+      let candidates = []
+    endif
+    return candidates
   endfunction
   return extend(completer, options)
 endfunction " }}}
