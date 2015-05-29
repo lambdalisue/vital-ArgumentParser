@@ -67,6 +67,66 @@ Describe ArgumentParser
     End
   End
 
+  Context .complete_files({arglead}, {cmdline}, {cursorpos}[, {extra}])
+    Before
+      let argument = s:A.new_argument('--foo', {
+            \ '__complete_files_root': './test/ArgumentParser/misc',
+            \})
+    End
+    It should return a glob list of files/directories in '__complete_files_root'
+      let candidates = s:A.complete_files(
+            \ 'B', 'A.txt', [], {
+            \   'argument': argument,
+            \   'opts': {},
+            \})
+      Assert Equals(candidates, [
+            \ 'B.csv', 'B.txt',
+            \])
+    End
+  End
+
+  Context .complete_choices({arglead}, {cmdline}, {cursorpos}[, {extra}])
+    Before
+      function! s:_complete_choices_callback(opts) abort " {{{
+        return [
+              \   'A.csv', 'A.txt',
+              \   'B.csv', 'B.txt',
+              \   'C.csv', 'C.txt',
+              \]
+      endfunction " }}}
+      let argument1 = s:A.new_argument('--foo', {
+            \ 'choices': [
+            \   'A.csv', 'A.txt',
+            \   'B.csv', 'B.txt',
+            \   'C.csv', 'C.txt',
+            \ ],
+            \})
+      let argument2 = s:A.new_argument('--foo', {
+            \ 'choices': function('s:_complete_choices_callback'),
+            \})
+    End
+    It should return an eliminated list of 'choices'
+      " list version
+      let candidates = s:A.complete_choices(
+            \ 'B', 'A.txt', [], {
+            \   'argument': argument1,
+            \   'opts': {},
+            \})
+      Assert Equals(candidates, [
+            \ 'B.csv', 'B.txt',
+            \])
+      " funcref version
+      let candidates = s:A.complete_choices(
+            \ 'B', 'A.txt', [], {
+            \   'argument': argument2,
+            \   'opts': {},
+            \})
+      Assert Equals(candidates, [
+            \ 'B.csv', 'B.txt',
+            \])
+    End
+  End
+
   Context .new([{options}])
     It should return an instance of ArgumentParser
       let ret = s:A.new()
@@ -77,6 +137,69 @@ Describe ArgumentParser
       Assert KeyExists(ret, 'alias')
       " method
       Assert KeyExists(ret, 'add_argument')
+    End
+  End
+
+  Context .new_argument({name}[, {alias}, {description}, {options}])
+    It should return an argument instance
+      let ret = s:A.new_argument('--foo')
+      Assert KeyExists(ret, 'name')
+      Assert KeyExists(ret, 'positional')
+      Assert KeyExists(ret, 'required')
+      Assert KeyExists(ret, 'default')
+      Assert KeyExists(ret, 'alias')
+      Assert KeyExists(ret, 'type')
+      Assert KeyExists(ret, 'deniable')
+      Assert KeyExists(ret, 'choices')
+      Assert KeyExists(ret, 'pattern')
+      Assert KeyExists(ret, 'conflicts')
+      Assert KeyExists(ret, 'superordinates')
+      Assert KeyExists(ret, 'dependencies')
+      Assert KeyExists(ret, 'terminal')
+      Assert KeyExists(ret, 'get_choices')
+      Assert KeyExists(ret, 'complete')
+
+      let ret = s:A.new_argument('--bar', 'description of bar')
+      Assert Equals(ret.description, ['description of bar'])
+
+      let ret = s:A.new_argument('--hoge', '-h', 'description of hoge')
+      Assert Equals(ret.alias, 'h')
+
+      let ret = s:A.new_argument('--hoge', '-h', ['description of hoge'])
+      Assert Equals(ret.alias, 'h')
+    End
+    It should raise an exception if "alias" option is specified to a positional argument
+      Throw s:A.new_argument('foo', { 'alias': 'f' }), '"alias" option cannot be specified'
+    End
+    It should raise an exception if "default" option is specified to a positional argument
+      Throw s:A.new_argument('foo', { 'default': 'foo' }), '"default" option cannot be specified'
+    End
+    It should raise an exception if "type" option is ANY for a positional argument
+      let types = s:A.types
+      Throw s:A.new_argument('foo', { 'type': types.any }), '"type" option cannot be ANY or SWITCH'
+    End
+    It should raise an exception if "type" option is SWITCH for a positional argument
+      let types = s:A.types
+      Throw s:A.new_argument('foo', { 'type': types.switch }), '"type" option cannot be ANY or SWITCH'
+    End
+    It should raise an exception if "conflicts" option is specified to a positional argument
+      Throw s:A.new_argument('foo', { 'conflicts': ['a'] }), '"conflicts" option cannot be specified'
+    End
+    It should raise an exception if "dependencies" option is specified to a positional argument
+      Throw s:A.new_argument('foo', { 'dependencies': ['a'] }), '"dependencies" option cannot be specified'
+    End
+    It should raise an exception if "superordinates" option is specified to a positional argument
+      Throw s:A.new_argument('foo', { 'superordinates': ['a'] }), '"superordinates" option cannot be specified'
+    End
+    It should raise an exception if "default" and "required" option is specified together
+      Throw s:A.new_argument('foo', { 'default': 'foo', 'required': 1 }), '"default" and "required" option cannot be specified'
+    End
+    It should raise an exception if "type" is "choice" and no "choices" is specified
+      Throw s:A.new_argument('foo', { 'type': 'choice' }), '"type" is specified to "choice" but no "choices" is specified'
+    End
+    It should raise an exception if "pattern" is specified for SWITCH argument
+      let types = s:A.types
+      Throw s:A.new_argument('foo', { 'type': types.switch, 'pattern': 'hello' }), '"pattern" option cannot be specified'
     End
   End
 
@@ -99,9 +222,9 @@ Describe ArgumentParser
         Assert KeyExists(ret, 'conflicts')
         Assert KeyExists(ret, 'superordinates')
         Assert KeyExists(ret, 'dependencies')
-        Assert KeyExists(ret, 'completer')
         Assert KeyExists(ret, 'terminal')
         Assert KeyExists(ret, 'get_choices')
+        Assert KeyExists(ret, 'complete')
 
         let ret = parser.add_argument('--bar', 'description of bar')
         Assert Equals(ret.description, ['description of bar'])
@@ -138,42 +261,6 @@ Describe ArgumentParser
         call parser.add_argument('hoge')
         Assert KeyExists(parser.alias, 'f')
         Assert Equals(parser.alias.f, 'foo')
-      End
-      It should raise an exception if "alias" option is specified to a positional argument
-        Throw parser.add_argument('foo', { 'alias': 'f' }), '"alias" option cannot be specified'
-      End
-      It should raise an exception if "default" option is specified to a positional argument
-        Throw parser.add_argument('foo', { 'default': 'foo' }), '"default" option cannot be specified'
-      End
-      It should raise an exception if "type" option is ANY for a positional argument
-        let types = s:A.types
-        Throw parser.add_argument('foo', { 'type': types.any }), '"type" option cannot be ANY or SWITCH'
-      End
-      It should raise an exception if "type" option is SWITCH for a positional argument
-        let types = s:A.types
-        Throw parser.add_argument('foo', { 'type': types.switch }), '"type" option cannot be ANY or SWITCH'
-      End
-      It should raise an exception if "conflicts" option is specified to a positional argument
-        let switch = s:A.types.switch
-        Throw parser.add_argument('foo', { 'conflicts': ['a'] }), '"conflicts" option cannot be specified'
-      End
-      It should raise an exception if "dependencies" option is specified to a positional argument
-        let switch = s:A.types.switch
-        Throw parser.add_argument('foo', { 'dependencies': ['a'] }), '"dependencies" option cannot be specified'
-      End
-      It should raise an exception if "superordinates" option is specified to a positional argument
-        let switch = s:A.types.switch
-        Throw parser.add_argument('foo', { 'superordinates': ['a'] }), '"superordinates" option cannot be specified'
-      End
-      It should raise an exception if "default" and "required" option is specified together
-        Throw parser.add_argument('foo', { 'default': 'foo', 'required': 1 }), '"default" and "required" option cannot be specified'
-      End
-      It should raise an exception if "type" is "choice" and no "choices" is specified
-        Throw parser.add_argument('foo', { 'type': 'choice' }), '"type" is specified to "choice" but no "choices" is specified'
-      End
-      It should raise an exception if "pattern" is specified for SWITCH argument
-        let types = s:A.types
-        Throw parser.add_argument('foo', { 'type': types.switch, 'pattern': 'hello' }), '"pattern" option cannot be specified'
       End
     End
     Context .get_conflicted_arguments({name}, {opts})

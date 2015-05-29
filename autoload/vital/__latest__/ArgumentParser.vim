@@ -13,7 +13,7 @@ function! s:_vital_loaded(V) dict abort " {{{
   let s:P = a:V.import('Prelude')
   let s:D = a:V.import('Data.Dict')
   let s:L = a:V.import('Data.List')
-  let s:C = a:V.import('ArgumentParser.Completer')
+  let s:H = a:V.import('System.Filepath')
 
   let s:const = {}
   let s:const.types = {}
@@ -26,7 +26,7 @@ function! s:_vital_loaded(V) dict abort " {{{
   call extend(self, s:const)
 endfunction " }}}
 function! s:_vital_depends() abort " {{{
-  return ['Prelude', 'Data.Dict', 'Data.List', 'ArgumentParser.Completer']
+  return ['Prelude', 'Data.Dict', 'Data.List', 'System.Filepath']
 endfunction " }}}
 function! s:_ensure_list(x) abort " {{{
   return s:P.is_list(a:x) ? a:x : [a:x]
@@ -83,49 +83,7 @@ function! s:new(...) abort " {{{
   endif
   return parser
 endfunction " }}}
-
-" Instance
-let s:argument = {
-      \ 'name': '',
-      \ 'description': [],
-      \ 'terminal': 0,
-      \ 'positional': 0,
-      \ 'required': 0,
-      \ 'default': '',
-      \ 'alias': '',
-      \ 'type': -1,
-      \ 'deniable': 0,
-      \ 'choices': [],
-      \ 'pattern': '',
-      \ 'conflicts': [],
-      \ 'dependencies': [],
-      \ 'superordinates': [],
-      \}
-function! s:argument.get_choices(opts) abort " {{{
-  if s:P.is_funcref(self.choices)
-    let candidates = self.choices(deepcopy(a:opts))
-  elseif s:P.is_list(self.choices)
-    let candidates = self.choices
-  else
-    let candidates = []
-  endif
-  return candidates
-endfunction " }}}
-
-let s:parser = {
-      \ 'hooks': {},
-      \ 'arguments': {},
-      \ '_arguments': [],
-      \ 'positional': [],
-      \ 'required': [],
-      \ 'alias': {},
-      \}
-function! s:parser._call_hook(name, ...) abort " {{{
-  if has_key(self.hooks, a:name)
-    call call(self.hooks[a:name], a:000, self)
-  endif
-endfunction " }}}
-function! s:parser.add_argument(name, ...) abort " {{{
+function! s:new_argument(name, ...) abort " {{{
   " determind name
   if a:name =~# '^--\?'
     let positional = 0
@@ -212,11 +170,120 @@ function! s:parser.add_argument(name, ...) abort " {{{
   elseif !empty(argument.pattern) && argument.type == s:const.types.switch
     throw 'vital: ArgumentParser: "pattern" option cannot be specified for SWITCH argument'
   endif
+  " register complete callback
+  let Complete = get(argument, 'complete', 0)
+  if has_key(argument, 'complete')
+    unlet argument.complete
+  endif
+  if s:P.is_funcref(Complete)
+    let argument.complete = Complete
+  elseif s:P.is_string(Complete)
+    if Complete ==# 'choices'
+      let argument.complete = function('s:complete_choices')
+    elseif Complete ==# 'file'
+      let argument.complete = function('s:complete_files')
+    else
+      let argument.complete = function('s:complete_dummy')
+    endif
+  elseif s:P.is_number(Complete)
+    if argument.type == s:const.types.choice
+      let argument.complete = function('s:complete_choices')
+    elseif argument.type == s:const.types.any || argument.type == s:const.types.value
+      let argument.complete = function('s:complete_files')
+    else
+      let argument.complete = function('s:complete_dummy')
+    endif
+  endif
+  return argument
+endfunction " }}}
+
+function! s:complete_dummy(arglead, cmdline, cursorpos, ...) abort " {{{
+  let extra = extend({
+        \ 'argument': {},
+        \ 'opts': {},
+        \}, get(a:000, 0, {}))
+  return []
+endfunction " }}}
+function! s:complete_files(arglead, cmdline, cursorpos, ...) abort " {{{
+  let extra = extend({
+        \ 'argument': {},
+        \ 'opts': {},
+        \}, get(a:000, 0, {}))
+  let root = expand(get(extra.argument, '__complete_files_root', '.'))
+  let candidates = split(
+        \ glob(s:H.join(root, a:arglead . '*'), 0),
+        \ "\n",
+        \)
+  " substitute 'root'
+  call map(candidates, printf("substitute(v:val, '^%s/', '', '')", root))
+  " substitute /home/<user> to ~/ if ~/ is specified
+  if a:arglead =~# '^\~'
+    call map(candidates, printf("substitute(v:val, '^%s', '~', '')", expand('~')))
+  endif
+  call map(candidates, "escape(isdirectory(v:val) ? v:val.'/' : v:val, ' \\')")
+  return candidates
+endfunction " }}}
+function! s:complete_choices(arglead, cmdline, cursorpos, ...) abort " {{{
+  let extra = extend({
+        \ 'argument': {},
+        \ 'opts': {},
+        \}, get(a:000, 0, {}))
+  if !has_key(extra.argument, 'get_choices')
+    return []
+  endif
+  let candidates = extra.argument.get_choices(extra.opts)
+  call filter(candidates, printf('v:val =~# "^%s"', a:arglead))
+  return candidates
+endfunction " }}}
+
+" Instance
+let s:argument = {
+      \ 'name': '',
+      \ 'description': [],
+      \ 'terminal': 0,
+      \ 'positional': 0,
+      \ 'required': 0,
+      \ 'default': '',
+      \ 'alias': '',
+      \ 'type': -1,
+      \ 'deniable': 0,
+      \ 'choices': [],
+      \ 'pattern': '',
+      \ 'conflicts': [],
+      \ 'dependencies': [],
+      \ 'superordinates': [],
+      \}
+function! s:argument.get_choices(opts) abort " {{{
+  if s:P.is_funcref(self.choices)
+    let candidates = self.choices(deepcopy(a:opts))
+  elseif s:P.is_list(self.choices)
+    let candidates = self.choices
+  else
+    let candidates = []
+  endif
+  return candidates
+endfunction " }}}
+
+let s:parser = {
+      \ 'hooks': {},
+      \ 'arguments': {},
+      \ '_arguments': [],
+      \ 'positional': [],
+      \ 'required': [],
+      \ 'alias': {},
+      \}
+function! s:parser._call_hook(name, ...) abort " {{{
+  if has_key(self.hooks, a:name)
+    call call(self.hooks[a:name], a:000, self)
+  endif
+endfunction " }}}
+function! s:parser.add_argument(...) abort " {{{
+  let argument = call('s:new_argument', a:000)
   " register argument
-  let self.arguments[name] = argument
+  let self.arguments[argument.name] = argument
   call add(self._arguments, argument)
   " register positional
-  if positional
+  if argument.positional
     call add(self.positional, argument.name)
   endif
   " register required
@@ -226,14 +293,6 @@ function! s:parser.add_argument(name, ...) abort " {{{
   " register alias
   if !empty(argument.alias)
     let self.alias[argument.alias] = argument.name
-  endif
-  " register completer
-  if !has_key(argument, 'completer')
-    if !empty(argument.choices)
-      let argument.completer = s:C.new('choice', { 'choices': argument.choices })
-    else
-      let argument.completer = s:C.new('file')
-    endif
   endif
   " return an argument instance for further manipulation
   return argument
@@ -564,12 +623,11 @@ function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos
   let name = m[1]
   let value = m[2]
   if has_key(self.arguments, name)
-    let candidates = self.arguments[name].completer.complete(
-          \ value,
-          \ a:cmdline,
-          \ a:cursorpos,
-          \ a:opts,
-          \)
+    let candidates = self.arguments[name].complete(
+          \ value, a:cmdline, a:cursorpos, {
+          \   'argument': self.arguments[name],
+          \   'opts': a:opts,
+          \})
   else
     let candidates = []
   endif
@@ -607,12 +665,11 @@ function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorp
   endif
   let cpositional = get(self.arguments, get(self.positional, npositional), {})
   if !empty(cpositional)
-    let candidates = cpositional.completer.complete(
-          \ a:arglead,
-          \ a:cmdline,
-          \ a:cursorpos,
-          \ a:opts,
-          \)
+    let candidates = cpositional.complete(
+          \ a:arglead, a:cmdline, a:cursorpos, {
+          \   'argument': cpositional,
+          \   'opts': a:opts,
+          \})
   endif
   return candidates
 endfunction " }}}
