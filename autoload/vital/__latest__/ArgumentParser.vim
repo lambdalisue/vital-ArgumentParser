@@ -644,8 +644,10 @@ function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, opts
     elseif !empty(argument.superordinates) && empty(self.get_superordinate_arguments(argument.name, a:opts))
       continue
     endif
-    if '--' . argument.name =~# '^' . a:arglead
+    if '--' . argument.name =~# '^' . a:arglead && len(argument.name) > 1
       call add(candidates, '--' . argument.name)
+    elseif '-' . argument.name =~# '^' . a:arglead && len(argument.name) == 1
+      call add(candidates, '-' . argument.name)
     endif
     if !empty(argument.alias) && '-' . argument.alias =~# '^' . a:arglead
       call add(candidates, '-' . argument.alias)
