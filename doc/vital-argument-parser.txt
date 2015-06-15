@@ -272,6 +272,10 @@ Parser.add_argument({name} [, {alias}, {description}, {options}])
 		'default'
 		A default value of the argument.
 
+		'on_default'
+		A default value of the argument when the argument is specified
+		without a value.
+
 		'type'				*Vital.ArgumentParser-types*
 		A type of the argument. You can specify one of the followings
 		- *Vital.ArgumentParser-types-any*

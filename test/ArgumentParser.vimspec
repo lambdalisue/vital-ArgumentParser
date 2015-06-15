@@ -429,6 +429,7 @@ Describe ArgumentParser
         call parser.add_argument('piyo')
         call parser.add_argument('puyo')
         call parser.add_argument('--terminal', { 'terminal': 1 })
+        call parser.add_argument('--on_default', { 'on_default': 'hello' })
       End
       It should correctly parse optional arguments (list)
         let ret = parser._parse_args(['--foo', '-b', '-H=hoge'])
@@ -498,6 +499,15 @@ Describe ArgumentParser
               \ '__unknown__': ['-'],
               \ '__args__': ['--foo', '-'],
               \ 'foo': 1,
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should correctly apply 'on_default' value when no value is specified
+        let ret = parser._parse_args(['--on_default'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--on_default'],
+              \ 'on_default': 'hello',
               \}
         Assert Equals(ret, exp)
       End
@@ -990,7 +1000,7 @@ Describe ArgumentParser
         call parser.add_argument('foo', { 'choices': ['aa', 'ab', 'ac', 'bb', 'bc', 'bd'] })
         call parser.add_argument('bar', { 'choices': ['e', 'f', 'g'] })
       End
-      It should return all posible values of a corresponding positional argument
+      It should return all possible values of a corresponding positional argument
         let candidates = parser._complete_positional_argument_value(
               \ '',
               \ 'ArgumentParse ',
