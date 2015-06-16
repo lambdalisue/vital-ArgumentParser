@@ -138,6 +138,12 @@ Describe ArgumentParser
       " method
       Assert KeyExists(ret, 'add_argument')
     End
+    It should convert a list 'description' into a multiline description
+      let ret = s:A.new({
+            \ 'description': ['A', 'B', 'C']
+            \})
+      Assert Equals(ret.description, "A\nB\nC")
+    End
   End
 
   Context .new_argument({name}[, {alias}, {description}, {options}])
