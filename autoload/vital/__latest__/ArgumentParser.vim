@@ -376,7 +376,10 @@ function! s:parser._parse_args(args, ...) abort " {{{
   while cursor < length
     let cword = opts.__args__[cursor]
     let nword = (cursor+1 < length) ? opts.__args__[cursor+1] : ''
-    if cword =~# '^--\?'
+    if cword ==# '--'
+      let cursor += 1
+      break
+    elseif cword =~# '^--\?'
       " optional argument
       let m = matchlist(cword, '\v^\-\-?([^=]+|)%(\=(.*)|)')
       let name = get(self.alias, m[1], m[1])

@@ -492,6 +492,14 @@ Describe ArgumentParser
               \ 'piyo': 'hi',
               \}
         Assert Equals(ret, exp)
+
+        let ret = parser._parse_args(['hi', '--', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
+        let exp = {
+              \ '__unknown__': ['--foo', '-b', '"hello world"', '--unknown', 'unk'],
+              \ '__args__': ['hi', '--', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
+              \ 'piyo': 'hi',
+              \}
+        Assert Equals(ret, exp)
       End
       It should correctly parse a partial input like '--foo -'
         let ret = parser._parse_args(['--foo', '-'])
