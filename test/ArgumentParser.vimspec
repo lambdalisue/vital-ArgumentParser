@@ -1,14 +1,14 @@
 let s:V = vital#of('vital')
 let s:A = s:V.import('ArgumentParser')
 
-function! s:complete_choices_callback(opts) abort " {{{
+function! Complete_choices_callback(opts) abort " {{{
   return [
         \   'A.csv', 'A.txt',
         \   'B.csv', 'B.txt',
         \   'C.csv', 'C.txt',
         \]
 endfunction " }}}
-function! s:validate_types_choices(opts) abort " {{{
+function! Validate_types_choices(opts) abort " {{{
   return ['e', 'f', 'g']
 endfunction " }}}
 
@@ -105,7 +105,7 @@ Describe ArgumentParser
             \ ],
             \})
       let argument2 = s:A.new_argument('--foo', {
-            \ 'choices': function('s:complete_choices_callback'),
+            \ 'choices': function('Complete_choices_callback'),
             \})
     End
     It should return an eliminated list of 'choices'
@@ -695,7 +695,7 @@ Describe ArgumentParser
               \})
         call parser.add_argument('--puyo', {
               \ 'type': s:A.types.choice,
-              \ 'choices': function('s:validate_types_choices'),
+              \ 'choices': function('Validate_types_choices'),
               \})
       End
       It should not raise any exceptions if all arguments are correctly specified
