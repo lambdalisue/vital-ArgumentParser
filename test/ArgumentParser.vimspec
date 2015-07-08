@@ -1,6 +1,16 @@
-call vital#of('vital').unload()
 let s:V = vital#of('vital')
 let s:A = s:V.import('ArgumentParser')
+
+function! s:complete_choices_callback(opts) abort " {{{
+  return [
+        \   'A.csv', 'A.txt',
+        \   'B.csv', 'B.txt',
+        \   'C.csv', 'C.txt',
+        \]
+endfunction " }}}
+function! s:validate_types_choices(opts) abort " {{{
+  return ['e', 'f', 'g']
+endfunction " }}}
 
 Describe ArgumentParser
   Context .splitargs({str})
@@ -87,13 +97,6 @@ Describe ArgumentParser
 
   Context .complete_choices({arglead}, {cmdline}, {cursorpos}[, {extra}])
     Before
-      function! s:complete_choices_callback(opts) abort " {{{
-        return [
-              \   'A.csv', 'A.txt',
-              \   'B.csv', 'B.txt',
-              \   'C.csv', 'C.txt',
-              \]
-      endfunction " }}}
       let argument1 = s:A.new_argument('--foo', {
             \ 'choices': [
             \   'A.csv', 'A.txt',
@@ -690,9 +693,6 @@ Describe ArgumentParser
               \ 'type': s:A.types.choice,
               \ 'choices': ['a', 'b', 'c'],
               \})
-        function! s:validate_types_choices(opts) abort " {{{
-          return ['e', 'f', 'g']
-        endfunction " }}}
         call parser.add_argument('--puyo', {
               \ 'type': s:A.types.choice,
               \ 'choices': function('s:validate_types_choices'),
