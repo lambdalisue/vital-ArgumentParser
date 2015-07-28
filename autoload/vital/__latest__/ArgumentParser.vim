@@ -76,13 +76,23 @@ function! s:new(...) abort " {{{
         \ 'validate_dependencies',
         \ 'validate_pattern',
         \ 'enable_positional_assign',
-        \ 'complete_unknown',
         \ 'description_unknown',
         \]))
   if s:P.is_list(options.description)
     let parser.description = join(options.description, "\n")
   else
     let parser.description = options.description
+  endif
+  if s:P.is_string(options.complete_unknown)
+    if options.complete_unknown ==# 'file'
+      let parser.complete_unknown = function('s:complete_files')
+    else
+      let parser.complete_unknown = function('s:complete_dummy')
+    endif
+  elseif s:P.is_funcref(options.complete_unknown)
+    let parser.complete_unknown = options.complete_unknown
+  else
+    let parser.complete_unknown = function('s:complete_dummy')
   endif
   if parser.auto_help
     call parser.add_argument(
