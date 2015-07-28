@@ -11,6 +11,7 @@ endfunction " }}}
 let s:parser = s:A.new({
       \ 'name': 'ArgumentParser',
       \ 'description': 'An ArgumentParser demo command',
+      \ 'description_unknown': '[{file1}, {file2}, ...]',
       \})
 " basic
 call s:parser.add_argument('--foo', 'A simple argument')

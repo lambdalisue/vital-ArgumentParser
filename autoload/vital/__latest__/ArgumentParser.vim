@@ -63,6 +63,8 @@ function! s:new(...) abort " {{{
         \ 'validate_dependencies': 1,
         \ 'validate_pattern': 1,
         \ 'enable_positional_assign': 0,
+        \ 'complete_unknown': function('s:complete_dummy'),
+        \ 'description_unknown': '',
         \}, get(a:000, 0, {}))
   let parser = extend(deepcopy(s:parser), s:D.pick(options, [
         \ 'name',
@@ -74,6 +76,8 @@ function! s:new(...) abort " {{{
         \ 'validate_dependencies',
         \ 'validate_pattern',
         \ 'enable_positional_assign',
+        \ 'complete_unknown',
+        \ 'description_unknown',
         \]))
   if s:P.is_list(options.description)
     let parser.description = join(options.description, "\n")
@@ -380,6 +384,7 @@ function! s:parser._parse_args(args, ...) abort " {{{
     let nword = (cursor+1 < length) ? opts.__args__[cursor+1] : ''
     if cword ==# '--'
       let cursor += 1
+      let opts.__terminated__ = 1
       break
     elseif cword =~# '^--\?'
       " optional argument
@@ -417,6 +422,7 @@ function! s:parser._parse_args(args, ...) abort " {{{
     " terminal check
     if !empty(name) && get(self.arguments, name, { 'terminal': 0 }).terminal
       let cursor += 1
+      let opts.__terminated__ = 1
       break
     else
       let cursor += 1
@@ -575,7 +581,18 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
         \ get(a:000, 0, {}),
         \)
   call self._call_hook('pre_complete', opts)
-  if empty(a:arglead)
+  if get(opts, '__terminated__')
+    if s:P.is_funcref(get(self, 'complete_unknown'))
+      let candidates = self.complete_unknown(
+            \ a:arglead,
+            \ cmdline,
+            \ a:cursorpos,
+            \ opts,
+            \)
+    else
+      let candidates = []
+    endif
+  elseif empty(a:arglead)
     let candidates = []
     let candidates += self._complete_positional_argument_value(
           \ a:arglead,
@@ -705,11 +722,14 @@ function! s:parser.help() abort " {{{
   let max_length = len(s:L.max_by(definitions.positional + definitions.optional, 'len(v:val)'))
   let buflines = []
   call add(buflines, printf(
-        \ ':%s', join([
+        \ ':%s', join(filter([
         \ self.name,
         \ join(commandlines.positional),
         \ join(commandlines.optional),
-        \])))
+        \ empty(self.description_unknown)
+        \   ? ''
+        \   : printf('-- %s', self.description_unknown),
+        \], '!empty(v:val)'))))
   call add(buflines, '')
   call add(buflines, self.description)
   if !empty(self.positional)

@@ -495,6 +495,7 @@ Describe ArgumentParser
       It should abort parse when a terminal argument is found (list)
         let ret = parser._parse_args(['hi', '--terminal', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
         let exp = {
+              \ '__terminated__': 1,
               \ '__unknown__': ['--foo', '-b', '"hello world"', '--unknown', 'unk'],
               \ '__args__': ['hi', '--terminal', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
               \ 'terminal': 1,
@@ -504,6 +505,7 @@ Describe ArgumentParser
 
         let ret = parser._parse_args(['hi', '--', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
         let exp = {
+              \ '__terminated__': 1,
               \ '__unknown__': ['--foo', '-b', '"hello world"', '--unknown', 'unk'],
               \ '__args__': ['hi', '--', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
               \ 'piyo': 'hi',
@@ -872,6 +874,7 @@ Describe ArgumentParser
         call parser.add_argument('bye')
         let parser._ncalls = {
               \ '_parse_args': 0,
+              \ '_complete_unknown': 0,
               \ '_complete_optional_argument_value': 0,
               \ '_complete_optional_argument': 0,
               \ '_complete_positional_argument_value': 0,
@@ -879,6 +882,9 @@ Describe ArgumentParser
         function! parser._parse_args(...)
           let self._ncalls._parse_args += 1
           return {}
+        endfunction
+        function! parser.complete_unknown(...)
+          let self._ncalls._complete_unknown += 1
         endfunction
         function! parser._complete_optional_argument_value(...)
           let self._ncalls._complete_optional_argument_value += 1
@@ -909,6 +915,11 @@ Describe ArgumentParser
         Assert Equals(parser._ncalls._complete_positional_argument_value, 0)
         call parser.complete('f', 'f', [], {})
         Assert Equals(parser._ncalls._complete_positional_argument_value, 1)
+      End
+      It should call 'complete_unknown' if '__terminated__' is specified to {opts}
+        Assert Equals(parser._ncalls._complete_unknown, 0)
+        call parser.complete('f', 'f', [], { '__terminated__': 1})
+        Assert Equals(parser._ncalls._complete_unknown, 1)
       End
     End
     Context ._complete_optional_argument_value({arglead}, {cmdline}, {cursorpos}, {opts})
@@ -1053,7 +1064,12 @@ Describe ArgumentParser
 
     Context .help()
       Before
-        let parser = s:A.new({ 'name': 'Foo', 'description': 'bar bar bar', 'auto_help': 0 })
+        let parser = s:A.new({
+              \ 'name': 'Foo',
+              \ 'description': 'bar bar bar',
+              \ 'description_unknown': 'hoge hoge',
+              \ 'auto_help': 0,
+              \})
         call parser.add_argument('--foo', 'foo definition')
         call parser.add_argument('--bar', '-b', 'bar definition')
         call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })
@@ -1067,7 +1083,7 @@ Describe ArgumentParser
       It should return a help
         let ret = parser.help()
         let exp = [
-              \ ':Foo [alpha] beta [--foo] [--bar] [--hoge[=HOGE]] [--piyo=PIYO] [--puyo={PUYO}] [--[no-]papa] --mama',
+              \ ':Foo [alpha] beta [--foo] [--bar] [--hoge[=HOGE]] [--piyo=PIYO] [--puyo={PUYO}] [--[no-]papa] --mama -- hoge hoge',
               \ '',
               \ 'bar bar bar',
               \ '',
