@@ -59,6 +59,7 @@ call s:parser.add_argument('positional1', { 'choices': [
       \ 'positional1_c',
       \]})
 call s:parser.add_argument('positional2')
+call s:parser.add_argument('positional3', { 'terminal': 1 })
 
 function! s:ArgumentParserParse(...) abort
   let opts = call(s:parser.parse, a:000, s:parser)
