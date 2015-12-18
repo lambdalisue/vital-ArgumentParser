@@ -110,6 +110,9 @@ function! s:new(...) abort " {{{
   endif
   return parser
 endfunction " }}}
+" @vimlint(EVL104, 1, l:options)
+" @vimlint(EVL104, 1, l:description)
+" @vimlint(EVL104, 1, l:alias)
 function! s:new_argument(name, ...) abort " {{{
   " determind name
   if a:name =~# '^--\?'
@@ -257,7 +260,6 @@ function! s:complete_dummy(arglead, cmdline, cursorpos, ...) dict abort " {{{
   return []
 endfunction " }}}
 function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort " {{{
-  let options = get(a:000, 0, {})
   let root = expand(get(self, '__complete_files_root', '.'))
   let candidates = split(
         \ glob(s:H.join(root, a:arglead . '*'), 0),
@@ -910,7 +912,7 @@ endfunction " }}}
 function! s:parser.hooks.post_complete_positional_argument(candidates, options) abort " {{{
 endfunction " }}}
 function! s:parser.hooks.validate() abort " {{{
-  let knwon_hooks = [
+  let known_hooks = [
         \ 'pre_validate',
         \ 'post_validate',
         \ 'pre_complete',
