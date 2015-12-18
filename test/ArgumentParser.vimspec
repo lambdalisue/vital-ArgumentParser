@@ -1,14 +1,14 @@
 let s:V = vital#of('vital')
 let s:A = s:V.import('ArgumentParser')
 
-function! Complete_choices_callback(opts) abort " {{{
+function! Complete_choices_callback(options) abort " {{{
   return [
         \   'A.csv', 'A.txt',
         \   'B.csv', 'B.txt',
         \   'C.csv', 'C.txt',
         \]
 endfunction " }}}
-function! Validate_types_choices(opts) abort " {{{
+function! Validate_types_choices(options) abort " {{{
   return ['e', 'f', 'g']
 endfunction " }}}
 
@@ -77,25 +77,25 @@ Describe ArgumentParser
     End
   End
 
-  Context .complete_files({arglead}, {cmdline}, {cursorpos}[, {extra}])
+  Context .complete_files({arglead}, {cmdline}, {cursorpos}[, {options}]) dict
     Before
       let argument = s:A.new_argument('--foo', {
             \ '__complete_files_root': './test/ArgumentParser/misc',
             \})
     End
     It should return a glob list of files/directories in '__complete_files_root'
-      let candidates = s:A.complete_files(
-            \ 'B', 'A.txt', [], {
-            \   'argument': argument,
-            \   'opts': {},
-            \})
+      let candidates = call(
+            \ s:A.complete_files,
+            \ ['B', 'A.txt', []],
+            \ argument
+            \)
       Assert Equals(candidates, [
             \ 'B.csv', 'B.txt',
             \])
     End
   End
 
-  Context .complete_choices({arglead}, {cmdline}, {cursorpos}[, {extra}])
+  Context .complete_choices({arglead}, {cmdline}, {cursorpos}[, {options}]) dict
     Before
       let argument1 = s:A.new_argument('--foo', {
             \ 'choices': [
@@ -110,20 +110,20 @@ Describe ArgumentParser
     End
     It should return an eliminated list of 'choices'
       " list version
-      let candidates = s:A.complete_choices(
-            \ 'B', 'A.txt', [], {
-            \   'argument': argument1,
-            \   'opts': {},
-            \})
+      let candidates = call(
+            \ s:A.complete_choices,
+            \ ['B', 'A.txt', []],
+            \ argument1
+            \)
       Assert Equals(candidates, [
             \ 'B.csv', 'B.txt',
             \])
       " funcref version
-      let candidates = s:A.complete_choices(
-            \ 'B', 'A.txt', [], {
-            \   'argument': argument2,
-            \   'opts': {},
-            \})
+      let candidates = call(
+            \ s:A.complete_choices,
+            \ ['B', 'A.txt', []],
+            \ argument2
+            \)
       Assert Equals(candidates, [
             \ 'B.csv', 'B.txt',
             \])
@@ -271,8 +271,11 @@ Describe ArgumentParser
         Assert KeyExists(parser.alias, 'f')
         Assert Equals(parser.alias.f, 'foo')
       End
+      It should raise an exception if an unknown option is specified
+        Throw /Unknown option/ parser.add_argument('--foo', { 'unknown': 'unknown' })
+      End
     End
-    Context .get_conflicted_arguments({name}, {opts})
+    Context .get_conflicted_arguments({name}, {options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -292,26 +295,26 @@ Describe ArgumentParser
               \})
       End
       It should return an empty list if no conflicts found
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'piyo': 1,
               \}
-        let ret = parser.get_conflicted_arguments('foo', opts)
+        let ret = parser.get_conflicted_arguments('foo', options)
         Assert Equals(ret, [])
-        let ret = parser.get_conflicted_arguments('piyo', opts)
+        let ret = parser.get_conflicted_arguments('piyo', options)
         Assert Equals(ret, [])
       End
       It should return a list of conflicted argument names if any conflicts found
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 1,
               \ 'hoge': 1,
               \}
-        let ret = parser.get_conflicted_arguments('foo', opts)
+        let ret = parser.get_conflicted_arguments('foo', options)
         Assert Equals(sort(ret), ['bar', 'hoge'])
       End
     End
-    Context .get_superordinate_arguments({name}, {opts})
+    Context .get_superordinate_arguments({name}, {options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -328,26 +331,26 @@ Describe ArgumentParser
               \})
       End
       It should return an empty list if no superordinate argument is found
-        let opts = {
+        let options = {
               \ 'hoge': 1,
               \ 'puyo': 1,
               \}
-        let ret = parser.get_superordinate_arguments('hoge', opts)
+        let ret = parser.get_superordinate_arguments('hoge', options)
         Assert Equals(ret, [])
-        let ret = parser.get_superordinate_arguments('puyo', opts)
+        let ret = parser.get_superordinate_arguments('puyo', options)
         Assert Equals(ret, [])
       End
       It should return a list of superordinate arguments if any
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 1,
               \ 'hoge': 1,
               \}
-        let ret = parser.get_superordinate_arguments('hoge', opts)
+        let ret = parser.get_superordinate_arguments('hoge', options)
         Assert Equals(sort(ret), ['bar', 'foo'])
       End
     End
-    Context .get_missing_dependencies({name}, {opts})
+    Context .get_missing_dependencies({name}, {options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -364,32 +367,32 @@ Describe ArgumentParser
               \})
       End
       It should return an empty list if all dependencies are exists
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 1,
               \ 'hoge': 1,
               \ 'piyo': 1,
               \ 'puyo': 1,
               \}
-        let ret = parser.get_missing_dependencies('foo', opts)
+        let ret = parser.get_missing_dependencies('foo', options)
         Assert Equals(ret, [])
-        let ret = parser.get_missing_dependencies('bar', opts)
+        let ret = parser.get_missing_dependencies('bar', options)
         Assert Equals(ret, [])
-        let ret = parser.get_missing_dependencies('hoge', opts)
+        let ret = parser.get_missing_dependencies('hoge', options)
         Assert Equals(ret, [])
-        let ret = parser.get_missing_dependencies('piyo', opts)
+        let ret = parser.get_missing_dependencies('piyo', options)
         Assert Equals(ret, [])
-        let ret = parser.get_missing_dependencies('puyo', opts)
+        let ret = parser.get_missing_dependencies('puyo', options)
         Assert Equals(ret, [])
       End
       It should return a list of conflicted argument names if any conflicts found
-        let opts = {
+        let options = {
               \ 'hoge': 1,
               \ 'puyo': 1,
               \}
-        let ret = parser.get_missing_dependencies('hoge', opts)
+        let ret = parser.get_missing_dependencies('hoge', options)
         Assert Equals(sort(ret), ['bar', 'foo'])
-        let ret = parser.get_missing_dependencies('puyo', opts)
+        let ret = parser.get_missing_dependencies('puyo', options)
         Assert Equals(sort(ret), ['piyo'])
       End
     End
@@ -399,18 +402,18 @@ Describe ArgumentParser
         let parser = s:A.new()
         let parser._ncalls = {
               \ '_parse_args': 0,
-              \ '_regulate_opts': 0,
-              \ '_validate_opts': 0,
+              \ '_regulate_options': 0,
+              \ '_validate_options': 0,
               \}
         function! parser._parse_args(...)
           let self._ncalls._parse_args += 1
           return {}
         endfunction
-        function! parser._regulate_opts(...)
-          let self._ncalls._regulate_opts += 1
+        function! parser._regulate_options(...)
+          let self._ncalls._regulate_options += 1
         endfunction
-        function! parser._validate_opts(...)
-          let self._ncalls._validate_opts += 1
+        function! parser._validate_options(...)
+          let self._ncalls._validate_options += 1
         endfunction
       End
       It should call '_parse_args'
@@ -418,18 +421,18 @@ Describe ArgumentParser
         call parser.parse('', {})
         Assert Equals(parser._ncalls._parse_args, ncalls + 1)
       End
-      It should call '_regulate_opts'
-        let ncalls = parser._ncalls._regulate_opts
+      It should call '_regulate_options'
+        let ncalls = parser._ncalls._regulate_options
         call parser.parse('', {})
-        Assert Equals(parser._ncalls._regulate_opts, ncalls + 1)
+        Assert Equals(parser._ncalls._regulate_options, ncalls + 1)
       End
-      It should call '_validate_opts'
-        let ncalls = parser._ncalls._validate_opts
+      It should call '_validate_options'
+        let ncalls = parser._ncalls._validate_options
         call parser.parse('', {})
-        Assert Equals(parser._ncalls._validate_opts, ncalls + 1)
+        Assert Equals(parser._ncalls._validate_options, ncalls + 1)
       End
     End
-    Context ._parse_args({args}[, {opts}])
+    Context ._parse_args({args}[, {options}])
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', { 'deniable': 1 })
@@ -531,7 +534,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
     End
-    Context ._validate_opts({opts})
+    Context ._validate_options({options})
       Before
         let parser = s:A.new()
         let parser._ncalls = {
@@ -575,77 +578,77 @@ Describe ArgumentParser
       It should NOT call '_validate_required' if 'validate_required' is 0
         let parser.validate_required = 0
         Assert Equals(parser._ncalls._validate_required, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_required, 0)
       End
       It should call '_validate_required' if 'validate_required' is 1
         let parser.validate_required = 1
         Assert Equals(parser._ncalls._validate_required, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_required, 1)
       End
       It should NOT call '_validate_types' if 'validate_required' is 0
         let parser.validate_types = 0
         Assert Equals(parser._ncalls._validate_types, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_types, 0)
       End
       It should call '_validate_types' if 'validate_required' is 1
         let parser.validate_types = 1
         Assert Equals(parser._ncalls._validate_types, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_types, 1)
       End
       It should NOT call '_validate_conflicts' if 'validate_required' is 0
         let parser.validate_conflicts = 0
         Assert Equals(parser._ncalls._validate_conflicts, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_conflicts, 0)
       End
       It should call '_validate_conflicts' if 'validate_required' is 1
         let parser.validate_conflicts = 1
         Assert Equals(parser._ncalls._validate_conflicts, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_conflicts, 1)
       End
       It should NOT call '_validate_superordinates' if 'validate_required' is 0
         let parser.validate_superordinates = 0
         Assert Equals(parser._ncalls._validate_superordinates, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_superordinates, 0)
       End
       It should call '_validate_superordinates' if 'validate_required' is 1
         let parser.validate_superordinates = 1
         Assert Equals(parser._ncalls._validate_superordinates, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_superordinates, 1)
       End
       It should NOT call '_validate_dependencies' if 'validate_required' is 0
         let parser.validate_dependencies = 0
         Assert Equals(parser._ncalls._validate_dependencies, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_dependencies, 0)
       End
       It should call '_validate_dependencies' if 'validate_required' is 1
         let parser.validate_dependencies = 1
         Assert Equals(parser._ncalls._validate_dependencies, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_dependencies, 1)
       End
       It should NOT call '_validate_pattern' if 'validate_required' is 0
         let parser.validate_pattern = 0
         Assert Equals(parser._ncalls._validate_pattern, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_pattern, 0)
       End
       It should call '_validate_pattern' if 'validate_required' is 1
         let parser.validate_pattern = 1
         Assert Equals(parser._ncalls._validate_pattern, 0)
-        call parser._validate_opts({})
+        call parser._validate_options({})
         Assert Equals(parser._ncalls._validate_pattern, 1)
       End
     End
-    Context ._validate_required({opts})
+    Context ._validate_required({options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -664,22 +667,22 @@ Describe ArgumentParser
               \})
       End
       It should not raise any exceptions if all requirements are specified
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'piyo': 1,
               \ 'bar': 'hello',
               \}
-        call parser._validate_required(opts)
+        call parser._validate_required(options)
       End
       It should raise an exception if there are any missing requirements
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'H': 1,
               \}
-        Throw parser._validate_required(opts), 'argument is required'
+        Throw parser._validate_required(options), 'argument is required'
       End
     End
-    Context ._validate_types({opts})
+    Context ._validate_types({options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -701,49 +704,49 @@ Describe ArgumentParser
               \})
       End
       It should not raise any exceptions if all arguments are correctly specified
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 'bar',
               \ 'hoge': 1,
               \ 'piyo': 'a',
               \}
-        call parser._validate_types(opts)
+        call parser._validate_types(options)
       End
       It should raise an exception if no value is specified to VALUE argument
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 1,
               \ 'hoge': 1,
               \}
-        Throw parser._validate_types(opts), 'argument is VALUE argument'
+        Throw parser._validate_types(options), 'argument is VALUE argument'
       End
       It should raise an exception if value is specified to SWITCH argument
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 'bar',
               \ 'hoge': 'hoge',
               \}
-        Throw parser._validate_types(opts), 'argument is SWITCH argument'
+        Throw parser._validate_types(options), 'argument is SWITCH argument'
       End
       It should raise an exception if no value is specified to CHOICE argument
-        let opts = {
+        let options = {
               \ 'piyo': 1,
               \}
-        Throw parser._validate_types(opts), 'argument is CHOICE argument'
+        Throw parser._validate_types(options), 'argument is CHOICE argument'
       End
       It should raise an exception if an invalid value is specified to CHOICE argument
-        let opts = {
+        let options = {
               \ 'piyo': 'hogehoge',
               \}
-        Throw parser._validate_types(opts), 'argument is CHOICE argument'
+        Throw parser._validate_types(options), 'argument is CHOICE argument'
 
-        let opts = {
+        let options = {
               \ 'puyo': 'hogehoge',
               \}
-        Throw parser._validate_types(opts), 'argument is CHOICE argument'
+        Throw parser._validate_types(options), 'argument is CHOICE argument'
       End
     End
-    Context ._validate_conflicts({opts})
+    Context ._validate_conflicts({options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -763,21 +766,21 @@ Describe ArgumentParser
               \})
       End
       It should not raise any exceptions if no conflicts found
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'piyo': 1,
               \}
-        call parser._validate_conflicts(opts)
+        call parser._validate_conflicts(options)
       End
       It should raise an exception if one of an argument conflict with another
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 1,
               \}
-        Throw parser._validate_conflicts(opts), 'argument conflicts with'
+        Throw parser._validate_conflicts(options), 'argument conflicts with'
       End
     End
-    Context ._validate_superordinates({opts})
+    Context ._validate_superordinates({options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -794,23 +797,23 @@ Describe ArgumentParser
               \})
       End
       It should not raise any exceptions if one of superordinates is specified
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'hoge': 1,
               \ 'piyo': 1,
               \ 'puyo': 1,
               \}
-        call parser._validate_superordinates(opts)
+        call parser._validate_superordinates(options)
       End
       It should raise an exception if no superordinate is specified
-        let opts = {
+        let options = {
               \ 'hoge': 1,
               \ 'puyo': 1,
               \}
-        Throw parser._validate_superordinates(opts), 'No supoerordinate argument'
+        Throw parser._validate_superordinates(options), 'No supoerordinate argument'
       End
     End
-    Context ._validate_dependencies({opts})
+    Context ._validate_dependencies({options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -827,24 +830,24 @@ Describe ArgumentParser
               \})
       End
       It should not raise any exception if all dependencies are exists
-        let opts = {
+        let options = {
               \ 'foo': 1,
               \ 'bar': 1,
               \ 'hoge': 1,
               \ 'piyo': 1,
               \ 'puyo': 1,
               \}
-        call parser._validate_dependencies(opts)
+        call parser._validate_dependencies(options)
       End
       It should raise an exception if any dependencies is missing
-        let opts = {
+        let options = {
               \ 'hoge': 1,
               \ 'puyo': 1,
               \}
-        Throw parser._validate_dependencies(opts), 'argument is required for'
+        Throw parser._validate_dependencies(options), 'argument is required for'
       End
     End
-    Context ._validate_pattern({opts})
+    Context ._validate_pattern({options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', {
@@ -852,20 +855,20 @@ Describe ArgumentParser
               \})
       End
       It should not raise any exceptions if the value follow the specified pattern
-        let opts = {
+        let options = {
               \ 'foo': '000-0000',
               \}
-        call parser._validate_types(opts)
+        call parser._validate_types(options)
       End
       It should raise an exception if the value does not follow the specified pattern
-        let opts = {
+        let options = {
               \ 'foo': '00-0000',
               \}
-        Throw parser._validate_types(opts), 'argument is VALUE argument'
+        Throw parser._validate_types(options), 'argument is VALUE argument'
       End
     End
 
-    Context .complete({arglead}, {cmdline}, {cursorpos}[, {opts}])
+    Context .complete({arglead}, {cmdline}, {cursorpos}[, {options}])
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', { 'choices': ['foo', 'foobar', 'bar', 'hoge'] })
@@ -916,13 +919,13 @@ Describe ArgumentParser
         call parser.complete('f', 'f', [], {})
         Assert Equals(parser._ncalls._complete_positional_argument_value, 1)
       End
-      It should call 'complete_unknown' if '__terminated__' is specified to {opts}
+      It should call 'complete_unknown' if '__terminated__' is specified to {options}
         Assert Equals(parser._ncalls._complete_unknown, 0)
         call parser.complete('f', 'f', [], { '__terminated__': 1})
         Assert Equals(parser._ncalls._complete_unknown, 1)
       End
     End
-    Context ._complete_optional_argument_value({arglead}, {cmdline}, {cursorpos}, {opts})
+    Context ._complete_optional_argument_value({arglead}, {cmdline}, {cursorpos}, {options})
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', { 'choices': ['foo', 'foobar', 'bar', 'hoge'] })
@@ -953,7 +956,7 @@ Describe ArgumentParser
               \)
       End
     End
-    Context ._complete_optional_argument({arglead}, {cmdline}, {cursorpos}, {opts})
+    Context ._complete_optional_argument({arglead}, {cmdline}, {cursorpos}, {options})
       Before
         let parser = s:A.new({ 'auto_help': 0 })
         call parser.add_argument('--foo')
@@ -1019,7 +1022,7 @@ Describe ArgumentParser
               \)
       End
     End
-    Context ._complete_positional_argument_value({arglead}, {cmdline}, {cursorpos}, {opts})
+    Context ._complete_positional_argument_value({arglead}, {cmdline}, {cursorpos}, {options})
       Before
         let parser = s:A.new({ 'auto_help': 0 })
         call parser.add_argument('foo', { 'choices': ['aa', 'ab', 'ac', 'bb', 'bc', 'bd'] })
