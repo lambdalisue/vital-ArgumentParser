@@ -268,7 +268,7 @@ function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort " {{{
   " substitute 'root'
   call map(candidates, printf(
         \ 'substitute(v:val, "^%s", "", "")',
-        \ s:H.realpath(s:H.remove_last_separator(root) . '/'),
+        \ escape(s:H.realpath(s:H.remove_last_separator(root) . '/'), '\'),
         \))
   " substitute /home/<user> to ~/ if ~/ is specified
   if a:arglead =~# '^\~'
@@ -278,7 +278,7 @@ function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort " {{{
           \))
   endif
   call map(candidates, printf(
-        \ 'escape(isdirectory(v:val) ? v:val . "%s" : v:val, " \\")',
+        \ 'isdirectory(v:val) ? v:val . "%s" : v:val',
         \ s:H.path_separator(),
         \))
   return candidates
