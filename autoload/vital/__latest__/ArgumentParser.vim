@@ -266,12 +266,21 @@ function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort " {{{
         \ "\n",
         \)
   " substitute 'root'
-  call map(candidates, printf("substitute(v:val, '^%s/', '', '')", root))
+  call map(candidates, printf(
+        \ 'substitute(v:val, "^%s", "", "")',
+        \ s:H.realpath(s:H.remove_last_separator(root) . '/'),
+        \))
   " substitute /home/<user> to ~/ if ~/ is specified
   if a:arglead =~# '^\~'
-    call map(candidates, printf("substitute(v:val, '^%s', '~', '')", expand('~')))
+    call map(candidates, printf(
+          \ 'substitute(v:val, "^%s", "~", "")',
+          \ expand('~')
+          \))
   endif
-  call map(candidates, "escape(isdirectory(v:val) ? v:val.'/' : v:val, ' \\')")
+  call map(candidates, printf(
+        \ 'escape(isdirectory(v:val) ? v:val . "%s" : v:val, " \\")',
+        \ s:H.path_separator(),
+        \))
   return candidates
 endfunction " }}}
 function! s:complete_choices(arglead, cmdline, cursorpos, ...) dict abort " {{{
