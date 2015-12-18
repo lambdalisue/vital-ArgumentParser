@@ -1,4 +1,5 @@
 let s:V = vital#of('vital')
+let s:P = s:V.import('System.Filepath')
 let s:A = s:V.import('ArgumentParser')
 
 function! Complete_choices_callback(options) abort " {{{
@@ -84,7 +85,7 @@ Describe ArgumentParser
   Context .complete_files({arglead}, {cmdline}, {cursorpos}[, {options}]) dict
     Before
       let argument = s:A.new_argument('--foo', {
-            \ '__complete_files_root': './test/ArgumentParser/misc',
+            \ '__complete_files_root': s:P.realpath('./test/ArgumentParser/misc'),
             \})
     End
     It return a glob list of files/directories in '__complete_files_root'
