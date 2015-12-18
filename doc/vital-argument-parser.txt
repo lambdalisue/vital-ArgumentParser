@@ -32,11 +32,11 @@ CONTENTS				*Vital.ArgumentParser-contents*
 
 Introductions		|Vital.ArgumentParser-introductions|
 Usage			|Vital.ArgumentParser-usage|
-Functions		|Vital.ArgumentParser-functions|
-Objects			|Vital.ArgumentParser-objects|
-  Parser		|Vital.ArgumentParser-parser|
-  Completer		|Vital.ArgumentParser.Completer|
-Validation		|Vital.ArgumentParser-validation|
+Interface		|Vital.ArgumentParser-interface|
+  Constants		|Vital.ArgumentParser-constants|
+  Functions		|Vital.ArgumentParser-functions|
+  Instance		|Vital.ArgumentParser-instance|
+Completes		|Vital.ArgumentParser-completes|
 Hooks			|Vital.ArgumentParser-hooks|
 
 ==============================================================================
@@ -44,123 +44,150 @@ INTRODUCTIONS				*Vital.ArgumentParser-introductions*
 
 *Vital.ArgumentParser* is a high functional argument (option) parser which
 concept was taken from |Vital.OptionParser| and argparse.ArgumentParser of
-Python.
+Python. The following features are provided:
+
+1. Positional argument is supported
+2. Positional assignment is supported ('--foo bar' instead of '--foo=bar')
+   |Vital.ArgumentParser-settings.enable_positional_assign|
+3. Quotation is supported ('--foo="bar bar"' or '--foo "bar bar"')
+4. Powerful validations
+   - Warn when a required argument is missing
+   - Warn when no value is assigned for VALUE or CHOICE argument
+   - Warn when a value is assigned for SWITCH argument
+   - Warn when a value is not found in 'choices' for CHOICE argument
+   - Warn when conflicted arguments are specified together
+   - Warn when argument dependencies are not satisfied
+   - Warn when superordinate argument is not specified together
+   - Warn when a value does not follow a required regex pattern
+   - Validation can enable/disable with settings
+5. Powerful completion
+   - Complete optional arguments
+   - Complete a value of optional/positional argument from a pre-specified
+     list
+   - Complete a value of optional/positional argument from a pre-specified
+     function
+   - Complete unknown arguments
+   - Easy to make a custom complete function
+6. Powerful hook functions
+   - Hook just before/after validation
+   - Hook just before/after completion
+   - Easy to regulate the behavior of parser with hooks
+7. Several misc options
+   - 'terminal': terminate further parsing at a particular argument
+   - 'deniable': support '--no-' prefix to assign negative value
+   - 'on_default': a default value when the option is specified without value
 
 
 ==============================================================================
 USAGE					*Vital.ArgumentParser-usage*
 
 Create a new instance of a parser with |Vital.ArgumentParser.new()| function.
-Then define arguments with |Vital.ArgumentParser-instance.add_argument()|.
-See the following example code:
+Then define arguments with |Vital.ArgumentParser-instance.add_argument()|
+like:
 >
 	let s:V = vital#of('vital')
 	let s:A = s:V.import('ArgumentParser')
 	
-	function! s:callback(opts) abort " {{{
-	  echo a:opts
-	endfunction " }}}
-	
-	let s:parser = s:A.new({
-	      \ 'name': 'ArgumentParser',
-	      \ 'description': 'An ArgumentParser demo command',
-	      \})
-	" basic
-	call s:parser.add_argument('--foo', 'A simple argument')
-	call s:parser.add_argument('--bar', '-b', 'A simple argument with alias')
-	call s:parser.add_argument('--hoge', "multiline\ndescription")
-	call s:parser.add_argument('--piyo', ['multiline', 'description', 'with list'])
-	call s:parser.add_argument('--puyo', 'ANY argument', { 'type': s:A.types.any })
-	call s:parser.add_argument('--poyo', 'VALUE argument', { 'type': s:A.types.value })
-	call s:parser.add_argument('--payo', 'CHOICE argument', { 'choices': ['a', 'b', 'c'] })
-	
-	" required
-	" ArgumentParser command will fail without --required
-	call s:parser.add_argument('--required', { 'required': 1 })
-	
-	" conflict
-	" ArgumentParser command will fail when more than two of
-	" --conflict1, --conflict2, --conflict3 are specified
-	call s:parser.add_argument('--conflict1', { 'conflicts': ['conflict2', 'conflict3'] })
-	call s:parser.add_argument('--conflict2', { 'conflicts': ['conflict1', 'conflict3'] })
-	call s:parser.add_argument('--conflict3', { 'conflicts': ['conflict1', 'conflict2'] })
-	
-	" superordinate and subordinate (require at least one)
-	" ArgumentParser command will fail when --subordinate is specified but
-	" non of --superordinate1 nor --superordinate2 is specified
-	call s:parser.add_argument('--superordinate1')
-	call s:parser.add_argument('--superordinate2')
-	call s:parser.add_argument('--subordinate', { 'superordinates': ['superordinate1', 'superordinate2'] })
-	
-	" dependencies (require all)
-	" ArgumentParser command will fail when --baby is specified but
-	" --papa nor --mama is specified
-	call s:parser.add_argument('--papa')
-	call s:parser.add_argument('--mama')
-	call s:parser.add_argument('--baby', { 'dependencies': ['papa', 'mama'] })
-	
-	" pattern
-	" ArgumentParser command will fail when --pattern is specified and the value
-	" does not follow the specified pattern
-	call s:parser.add_argument('--pattern', { 'pattern': '\v\d{3}-\d{4}' })
-	
-	" positional argument
-	call s:parser.add_argument('positional1', { 'choices': [
-	      \ 'positional1_a',
-	      \ 'positional1_b',
-	      \ 'positional1_c',
-	      \]})
-	call s:parser.add_argument('positional2')
-	
-	function! s:ArgumentParserParse(...) abort
-	  let opts = call(s:parser.parse, a:000, s:parser)
-	  if !empty(opts)
-	    echo opts
+	function! s:get_parser() abort
+	  if exists('s:parser')
+	    return s:parser
 	  endif
+	  let s:parser = s:A.new({
+	        \ 'name': 'ArgumentParserDemo',
+	        \ 'description': 'A description of the command',
+	        \})
+	  call s:parser.add_argument(
+	        \ '--foo', '-f', 'A description of foo',
+	        \)
+	  call s:parser.add_argument(
+	        \ '--bar', '-b', 'A description of bar', {
+	        \   'choices': ['b', 'ba', 'bar'],
+	        \})
+	  return s:parser
 	endfunction
-	function! s:ArgumentParserComplete(...) abort
-	  return call(s:parser.complete, a:000, s:parser)
-	endfunction
-	command! -nargs=? -range -bang
-	      \ -complete=customlist,s:ArgumentParserComplete ArgumentParser
-	      \ :call s:ArgumentParserParse(<q-bang>, [<line1>, <line2>], <f-args>)
-<
-This paresr automatically add '--help' argument to show a help like:
->
-	:ArgumentParser [positional1] [positional2] [--help] [--foo] [--bar] [--hoge] [--piyo] [--puyo[=PUYO]] [--poyo=POYO] [--payo={PAYO}] --required [--conflict1] [--conflict2] [--conflict3] [--superordinate1] [--superordinate2] [--subordinate] [--papa] [--mama] [--baby] [--pattern=PATTERN]
-	
-	An ArgumentParser demo command
-	
-	Positional arguments:
-	  positional1            
-	  positional2            
-	
-	Optional arguments:
-	  -h, --help             show this help
-	      --foo              A simple argument
-	  -b, --bar              A simple argument with alias
-	      --hoge             multiline
-	                         description
-	      --piyo             multiline
-	                         description
-	                         with list
-	      --puyo[=PUYO]      ANY argument
-	      --poyo=POYO        VALUE argument
-	      --payo={PAYO}      CHOICE argument
-	      --required          (*)
-	      --conflict1        
-	      --conflict2        
-	      --conflict3        
-	      --superordinate1   
-	      --superordinate2   
-	      --subordinate      
-	      --papa             
-	      --mama             
-	      --baby             
-	      --pattern=PATTERN  
-<
 
+	function! s:parse(...) abort
+	  let parser = s:get_parser()
+	  return call(parser.parse, a:000, parser)
+	endfunction
+	function! s:complete(...) abort
+	  let parser = s:get_parser()
+	  return call(parser.complete, a:000, parser)
+	endfunction
+	function! s:command(...) abort
+	  let options = call('s:parse', a:000)
+	  if empty(options)
+	    return
+	  endif
+	  echomsg string(options)
+	endfunction
+
+	command! -nargs=? -range -bang
+	        \ -complete=customlist,s:complete
+	        \ ArgumentParserDemo
+	        \ :call s:command(<q-bang>, [<line1>, <line2>], <f-args>)
+<
+The code above create a new command 'ArgumentParserDemo' which is like:
+>
+	:ArgumentParserDemo --foo
+	" {
+	"   'foo': 1,
+	"   '__args__': ['--foo'],
+	"   '__bang__': 0,
+	"   '__unknown__': [],
+	"   '__range__': [34, 34]
+	" }
+
+	:ArgumentParserDemo --foo --bar=bar
+	" {
+	"   'foo': 1,
+	"   'bar': 'bar',
+	"   '__args__': ['--foo', '--bar=bar'],
+	"   '__bang__': 0,
+	"   '__unknown__': [],
+	"   '__range__': [34, 34]
+	" }
+
+	:ArgumentParserDemo --help
+	" 
+	" :ArgumentParserDemo [--help] [--foo] [--bar={BAR}]
+	" 
+	" A description of the command
+	" 
+	" Optional arguments:
+	"   -h, --help       show this help
+	"   -f, --foo        A description of foo
+	"   -b, --bar={BAR}  A description of bar
+	" 
+<
 ==============================================================================
+INTERFACE				*Vital.ArgumentParser-interface*
+
+------------------------------------------------------------------------------
+CONSTANTS				*Vital.ArgumentParser-constants*
+
+types					*Vital.ArgumentParser-constants.types*
+
+	A type of an argument to regulate the behaviour. The follwoing
+	properties are exists in 'types' |Dictionary|.
+
+	'any'
+	This type of arguments can used as a SWITCH or a VALUE argument.
+
+	'switch'
+	This type of arguments does not take a value. This is a default
+	argument type of an optional argument.
+
+	'value'
+	This type of arguments requires a value. This is a default argument
+	type of a positional argument or an optional argument with 'pattern'
+	option or 'complete' option.
+
+	'choice'
+	This type of arguments requires a value in 'choices' option. This is a
+	default argument type when 'choices' option is specified.
+
+------------------------------------------------------------------------------
 FUNCTIONS				*Vital.ArgumentParser-functions*
 
 splitargs({str})			*Vital.ArgumentParser.splitargs()*
@@ -181,81 +208,113 @@ strip_quotes({str})			*Vital.ArgumentParser.strip_quotes()*
 
 new([{settings}])			*Vital.ArgumentParser.new()*
 	
-	Make an argument instance. It return |Dictionary| which is like an
-	object in OOP. {settings} is a |Dictionary| to configure the parser
-	instance.
+	Make a parser instance. It return |Dictionary| which is like an
+	object in OOP.
 
 	{settings}
+	An setting |Dictionary| which allow the following settings.
 	
 		'name'
-		A name of the command. Used in help.
+		A name of the command in |String| used in help.
+		*Vital.ArgumentParser-settings.name*
 
 		'description'
-		A description of the command. Used in help.
+		A description of the command in |List| or |String| used in help.
+		*Vital.ArgumentParser-settings.description*
 
 		'auto_help'
-		1 to create help argument automatically. Default is 1
+		1 to create a help argument automatically. Default is 1
+		*Vital.ArgumentParser-settings.auto_help*
 
 		'validate_required'
-		Validate missing required argument. Default is 1
+		Validate missing required arguments. Default is 1
+		*Vital.ArgumentParser-settings.validate_required*
 
 		'validate_types'
-		Validate argument type mismatch. Default is 1
+		Validate arguments type mismatch. Default is 1
+		*Vital.ArgumentParser-settings.validate_types*
 
 		'validate_conflicts'
 		Validate conflicted arguments. Default is 1
+		*Vital.ArgumentParser-settings.validate_conflicts*
 
 		'validate_superordinates'
 		Validate missing superordinate arguments. Default is 1
+		*Vital.ArgumentParser-settings.validate_superordinates*
 
 		'validate_dependencies'
 		Validate missing dependencies. Default is 1
+		*Vital.ArgumentParser-settings.validate_dependencies*
 
 		'validate_pattern'
 		Validate pattern of argument values. Default is 1
+		*Vital.ArgumentParser-settings.validate_pattern*
 
 		'enable_positional_assign'
-		1 to enable '--foo bar' type value assign. Default is 1
+		1 to enable '--foo bar' type value assignment. Default is 1
+		*Vital.ArgumentParser-settings.enable_positional_assign*
 
+		'complete_unknown'
+		A |Funcref| used to complete unknown arguments.
+		See |Vital.ArgumentParser-complete| for detail.
+		*Vital.ArgumentParser-settings.complete_unknown*
 
-==============================================================================
-OBJECTS					*Vital.ArgumentParser-objects*
+		'unknown_description'
+		A description of unknown arguments in |String| used in help.
+		*Vital.ArgumentParser-settings.unknown_description*
 
-------------------------------------------------------------------------------
-PARSER				*Vital.ArgumentParser-parser*
+					*Vital.ArgumentParser.new_argument()*
+new_argument({name})
+new_argument({name}, {description})
+new_argument({name}, {options})
+new_argument({name}, {alias}, {description})
+new_argument({name}, {description}, {options})
+new_argument({name}, {alias}, {description}, {options})
 
-				*Vital.ArgumentParser-Parser.add_argument()*
-Parser.add_argument({name} [, {options}])
-Parser.add_argument({name} [, {description}, {options}])
-Parser.add_argument({name} [, {alias}, {description}])
-Parser.add_argument({name} [, {alias}, {description}, {options}])
+	Make an argument instance. It return |Dictionary| which is like an
+	object in OOP.
 
-	Define a new argument to the parser.
-
-	{name} (required)
-	|String| value. A name of the argument. It is used as an entry name
-	as well.  If the value start from '--' or '-', then the argument will
-	be treated as an optional argument. Otherwise it will be treated as a
+	{name}
+	A name of the argument in |String}. If it starts from '-' or '--', the
+	argument become an optional argument, otherwise the argument become a
 	positional argument.
 
-	{alias} (optional)
-	|String| value. An alias name of the argument.
-	It must start from '-'.
+	{description}
+	A description of the argument in |String| or |List|
 
-	{description} (optional)
-	|String| value. A description string of the argument.
-	It is used in help.
+	{alias}
+	An alias of the argument {name} in |String|. It is usually used to
+	give a short name of an optional argument. Positional argument does
+	not support alias and will throw an exception if {alias} is specified
+	to a positional argument.
 
-	{options} (optional)
-	|Dictionary| value. A extra options of the arguments
+	{options}
+	An option |Dictionary| which allow the following options.
+
+		'description'
+		A description of the argument. Same as {description}.
+
+		'alias'
+		An alias of the argument {name}. Same as {alias}.
 
 		'terminal'
-		0 or 1. If it is 1, parsing will be terminated after parsing
-		this argument, namely all arguments later than this argument
-		will be listed in '__unknown__' property.
+		1 to terminate further parsing after this argument.
+		All arguments later than this argument will be listed in
+		'__unknown__' property.
 >
 		call parser.add_argument('--foo', { 'terminal': 1 })
 		call parser.add_argument('--bar')
+		" '--bar' is prior to '--foo' so '--bar' is parsed
+		echo parser.parse('', [0, 0], '--bar --foo')
+		{
+		    'foo': 1,
+		    'bar': 1,
+		    '__bang__': 0,
+		    '__range__': [0, 0],
+		    '__args__': ['--foo', '--bar'],
+		    '__unknown__': [],
+		}
+		" '--foo' is prior to '--bar' so '--bar' is not parsed
 		echo parser.parse('', [0, 0], '--foo --bar')
 		{
 		    'foo': 1,
@@ -266,8 +325,9 @@ Parser.add_argument({name} [, {alias}, {description}, {options}])
 		}
 <
 		'required'
-		0 or 1. If it is 1, the parser will complain when the argument
-		is not specified in validation step.
+		1 to throw an exception when the argument is not specified in
+		validation step.
+		See |Vital.ArgumentParser-settings.validate_required|.
 
 		'default'
 		A default value of the argument.
@@ -276,24 +336,16 @@ Parser.add_argument({name} [, {alias}, {description}, {options}])
 		A default value of the argument when the argument is specified
 		without a value.
 
-		'type'				*Vital.ArgumentParser-types*
-		A type of the argument. You can specify one of the followings
-		- *Vital.ArgumentParser-types-any*
-		  This type can be a switch or value.
-		- *Vital.ArgumentParser-types-switch*
-		  This type cannot take a value. Useful for switch. Default
-		  for an optional argument.
-		- *Vital.ArgumentParser-types-value*
-		  This type require a value. Useful for positional argument.
-		  Default for a positional argument or an argument which has
-		  'pattern' option.
-		- *Vital.ArgumentParser-types-choice*
-		  This type require a value which listed in 'choices' option.
-		  Default for an argument which has 'choices' option.
-
+		'type'
+		A type of the argument.
+		See |Vital.ArgumentParser-constants.types|.
+>
+		" Assign 'value' type for an optional argument to allow a value
+		" assignment.
+		call parser.add_argument('--foo', { 'type': s:A.types.value })
+<
 		'deniable'
-		0 or 1. If it is 1, a negative value can be specified with
-		'--no-' prefix. See the following code
+		1 to allow a negative assignment with '--no-' prefix.
 >
 		call parser.add_argument('--foo', { 'deniable': 1 })
 		echo parser.parse('', [0, 0], '')
@@ -321,65 +373,109 @@ Parser.add_argument({name} [, {alias}, {description}, {options}])
 		}
 <
 		'choices'
-		A |List| value. |Vital.ArgumentParser-types-choice| only allow the
-		values in the list. If this value is specified, 'type' will
-		automatically be |Vital.ArgumentParser-types-choice|.
-
+		A choice candidates in |List| or |Funcref|. If this option is
+		specified, the 'type' of the argument become 'choice'.
+		If |Funref| is specified, the specified Funcref will be called
+		with a partial options.
+>
+		function! s:get_choices(options) abort
+		  if get(a:options, 'foo')
+		    return ['f', 'fo', 'foo']
+		  else
+		    return ['b', 'ba', 'bar']
+		  endif
+		endfunction
+		call s:parser.add_argument('--hoge', {
+		        \ 'choices': function('s:get_choices'),
+		        \})
+<
 		'pattern'
-		A |String| value. The value required to follow the specified
-		pattern (regex). If this value is specified, 'type' will
-		automatically be |Vital.ArgumentParser-types-value|.
+		A regex pattern |String| which the argument value requires to
+		follow. If this option is specified, the 'type' of the argument
+		become 'value'.
+		See |Vital.ArgumentParser-settings.validate_pattern|.
 
-		'completer'
-		An instance of |Vital.ArgumentParser.Completer|.
-		If nothing is specified, 'file' completer is used as a
-		default completer.
-
-		UNDER DEVELOPMENT.
+		'complete'
+		A complete |Funcref| used to complete the value. IF this
+		option is specified, the 'type' of the argument become 'value'.
+		See |Vital.ArgumentParser-complete| for detail.
 
 		'conflicts'
-		A ||List|. You can specify a conflict argument names to this option.
-		All arguments specified cannot be specified in the same time
-		with this argument.
+		A argument name ||List| which conflict with the argument.
+		An exception will be thrown when any arguments in the list is
+		specified together with the argument.
+		See |Vital.ArgumentParser-settings.validate_conflicts|.
 
 		'dependencies'
-		A |List|. If an argument has dependencies, all of the
-		dependencies are required to be specified.
-		Otherwise the parser complain that in validation step.
+		A argument name |List| which is required for the argument.
+		An exception will be thrown when any arguments in the list is
+		not specified together with the argument.
+		See |Vital.ArgumentParser-settings.validate_dependencies|.
 
 		'superordinates'
-		A ||List|. If an argument has superordinate arguments, at least one of
-		the superordinate arguments is required to be specified.
-		Otherwise the parser complain that in validation step.
+		A argument name |List| which is superordinate of the argument.
+		An exception will be thrown when non of arguments in the list
+		is not specified together with the argument.
+		See |Vital.ArgumentParser-settings.validate_superordinates|.
 
-				*Vital.ArgumentParser-Parser.get_conflicted_arguments()*
-Parser.get_conflicted_arguments({name}, {opts})
+------------------------------------------------------------------------------
+INSTANCE					*Vital.ArgumentParser-instance*
 
-	Return a |List| of conflicted argument names of {name} in {opts}.
+			*Vital.ArgumentParser-instance.register_argument()*
+Parser.register_argument({argument})
 
-				*Vital.ArgumentParser-Parser.get_superordinate_arguments()*
-Parser.get_superordinate_arguments({name}, {opts})
+	Register {argument} to the parser instance.
+	It throws an exception when the {argument} is already registered.
 
-	Return a |List| of superordinate argument names of {name} in {opts}.
+			*Vital.ArgumentParser-instance.unregister_argument()*
+Parser.unregister_argument({argument})
 
-				*Vital.ArgumentParser-Parser.get_missing_dependencies()*
-Parser.get_missing_dependencies({name}, {opts})
+	Unregister {argument} from the parser instance.
+	It throws an exception when the {argument} has not been registered.
+	
+			*Vital.ArgumentParser-instance.add_argument()*
+Parser.add_argument({name})
+Parser.add_argument({name}, {description})
+Parser.add_argument({name}, {options})
+Parser.add_argument({name}, {alias}, {description})
+Parser.add_argument({name}, {description}, {options})
+Parser.add_argument({name}, {alias}, {description}, {options})
 
-	Return a |List| of missing dependencies of {name} in {opts}.
+	Create an argument and register it to the parser instance.
+	It use |Vital.ArgumentParser.new_argument()| to create an argument
+	instance and |Vital.ArgumentParser-instance.register_argument()| to
+	register.
 
-				*Vital.ArgumentParser-Parser.parse()*
-Parser.parse({bang}, {range} [, {f-args}])
+			*Vital.ArgumentParser-instance.get_conflicted_arguments()*
+Parser.get_conflicted_arguments({name}, {options})
+
+	Return a |List| of conflicted argument names of {name} in {options}.
+
+			*Vital.ArgumentParser-instance.get_superordinate_arguments()*
+Parser.get_superordinate_arguments({name}, {options})
+
+	Return a |List| of superordinate argument names of {name} in {options}.
+
+			*Vital.ArgumentParser-instance.get_missing_dependencies()*
+Parser.get_missing_dependencies({name}, {options})
+
+	Return a |List| of missing dependencies of {name} in {options}.
+
+			*Vital.ArgumentParser-instance.parse()*
+Parser.parse({bang}, {range}[, {f-args}, {options}])
 	
 	Parse arguments of |command| and return a |Dictionary|
 
 	{bang}
-	A |Number| or |String|. You should specify <q-bang>
+	A |bang| parameter. Use <q-bang>.
 
 	{range}
-	A |List|. You should specify [<line1>, <line2>]
+	A |List| which indicate a region of the buffer.
+	Use [<line1>, <line2>].
 
 	{f-args}
-	A |String|. You should specify <f-args>
+	A |String| which indicate specified arguments.
+	Use <f-args>.
 
 	The return value contains all parsed arguments and the following
 	special properties
@@ -396,31 +492,164 @@ Parser.parse({bang}, {range} [, {f-args}])
 		'__unknown__'
 		A |List| of arguments which had not parsed.
 
-				*Vital.ArgumentParser-Parser.complete()*
-Parser.complete({arglead}, {cmdline}, {cursorpos}[, {opts}])
+	See |Vital.ArgumentParser-usage| for usage.
 
-	Used to complete arguments and its values in command line.
-	
-	TODO
+			*Vital.ArgumentParser-instance.complete()*
+Parser.complete({arglead}, {cmdline}, {cursorpos}[, {options}])
 
-				*Vital.ArgumentParser-Parser.help()*
+	Complete {arglead}.
+	See |Vital.ArgumentParser-usage| for usage.
+
+			*Vital.ArgumentParser-instance.help()*
 Parser.help()
 
-	Display help.
-
-------------------------------------------------------------------------------
-COMPLETER				*Vital.ArgumentParser.Completer*
+	Display an automatically generated help.
 
 
 ==============================================================================
-Validation				*Vital.ArgumentParser-validation*
+COMPLETES				*Vital.ArgumentParser-completes*
 
-TODO
+ArgumentParser provides the following default complete functions. All
+functions are executed as a |Dictionary-function| of an instance of a parser
+or an argument, namely the |self| become an instance of a parser or an argument.
+If the function is specified to 'complete_unknown' setting for
+|Vital.ArgumentParser.new()| function, the |self| become a parser instance.
+If the function is specified to 'complete' option for
+|Vital.ArgumentParser.new_argument()|, the |self| become an argument instance.
+Additionally, an extra argument {options}, which indicate a parsed {options}
+returned from |Vital.ArgumentParser.parse()| method WITHOUT validation.
 
+				*Vital.ArgumentParser.complete_dummy()*
+complete_dummy({arglead}, {cmdline}, {cursorpos}[, {options}) dict
+
+	A dummy complete function which always return an empty |List|.
+
+				*Vital.ArgumentParser.complete_files()*
+complete_files({arglead}, {cmdline}, {cursorpos}[, {options}) dict
+
+	A filename complete function which is in '__complete_files_root'
+	property of |self| or a current working directory.
+
+				*Vital.ArgumentParser.complete_choices()*
+complete_choices({arglead}, {cmdline}, {cursorpos}[, {options}) dict
+
+	A choice complete function. The choice candidates is gathered by
+	executing 'get_choices' method of |self|.
+
+If you would like to write your own complete function, follow the following
+rules.
+
+1. Make a function as a |Dictionary-function|.
+
+2. Allow an extra {options} argument at the end of arguments of general
+   complete function ({arglead}, {cmdline}, {cursorpos}).
+
+For example, assume developer want to use a list value of '__foo' property of
+the instance if 'foo' option is specified and use a lit value of '__bar'
+property otherwise then:
+>
+	function! s:complete_foobar(arglead, cmdline, cursorpos, ...) abort
+	  let options = get(a:000, 0, {})
+	  if get(options, 'foo')
+	    let candidates = get(self, '__foo', [])
+	  else
+	    let candidates = get(self, '__bar', [])
+	  endif
+	  return filter(candidates, 'a:arglead =~# "^" . v:val')
+	endfunction
+<
 ==============================================================================
-Hooks						*Vital.ArgumentParser-hooks*
+HOOKS						*Vital.ArgumentParser-hooks*
 
-TODO
+The following hook methods are provided. Developers can override these method
+to call custom hook functions.
 
+		*Vital.ArgumentParser-instance.hooks.pre_validate()*
+Parser.hooks.pre_validate({options})
+
+	A fook function called just before validation.
+	Modify {options} inplace to regulate {options} for further process.
+
+		*Vital.ArgumentParser-instance.hooks.post_validate()*
+Parser.hooks.post_validate({options})
+
+	A fook function called just after validation.
+	Modify {options} inplace to regulate {options} for further process.
+
+		*Vital.ArgumentParser-instance.hooks.pre_complete()*
+Parser.hooks.pre_complete({options})
+
+	A fook function called just before making candidates for completion.
+	Modify {options} inplace to regulate {options} for further process.
+
+		*Vital.ArgumentParser-instance.hooks.post_complete()*
+Parser.hooks.post_complete({candidates}, {options})
+
+	A fook function called just after making candidates for completion.
+	Modify {candidates} or {options} inplace to regulate these for further
+	process.
+
+	*Vital.ArgumentParser-instance.hooks.post_complete_argument_value()*
+Parser.hooks.post_complete_argument_value({candidates}, {options})
+
+	A fook function called just after making candidates for argument value
+	completion.
+	Modify {candidates} or {options} inplace to regulate these for further
+	process.
+
+	*Vital.ArgumentParser-instance.hooks.post_complete_optional_argument()*
+Parser.hooks.post_complete_optional_argument({candidates}, {options})
+
+	A fook function called just after making candidates of completion of
+	optional argument.
+	Modify {candidates} or {options} inplace to regulate these for further
+	process.
+
+	*Vital.ArgumentParser-instance.hooks.post_complete_positional_argument()*
+Parser.hooks.post_complete_positional_argument({candidates}, {options})
+
+	A fook function called just after making candidates of completion of
+	positional argument.
+	Modify {candidates} or {options} inplace to regulate these for further
+	process.
+
+	*Vital.ArgumentParser-instance.hooks.validate()*
+Parser.hooks.validate()
+
+	Validate a hooks instance to check if developer define correct hooks.
+	It throws an exception if unknown hook functions are specified to the
+	hook instance.
+
+In |Vital.ArgumentParser-instance.parse()| method, the following hooks are
+called in the order of appearance.
+
+- |Vital.ArgumentParser-instance.hooks.pre_validate()|
+- |Vital.ArgumentParser-instance.hooks.post_validate()|
+
+In |Vital.ArgumentParser-instance.complete()| method, the following hooks are
+called in the order of appearance.
+
+- |Vital.ArgumentParser-instance.hooks.pre_complete()|
+- An internal hooks (one of the followings, depends on {arglead}).
+  - |Vital.ArgumentParser-instance.hooks.post_complete_argument_value()|
+  - |Vital.ArgumentParser-instance.hooks.post_complete_optional_argument()|
+  - |Vital.ArgumentParser-instance.hooks.post_complete_positional_argument()|
+- |Vital.ArgumentParser-instance.hooks.post_complete()|
+
+For example, assume a developer want to add '--public' and '--private' option
+and want to use '--private' option for a negative switch for '--public'
+option then:
+>
+	call s:parser.add_argument('--public', { 'conflicts': ['private'] })
+	call s:parser.add_argument('--private', { 'conflicts': ['public'] })
+	function! s:parser.hooks.post_validate(options) abort
+	  if get(a:options, 'private')
+	    " modify a:options inplace to give effects
+	    let a:options.public = !a:options.private
+	    unlet! a:options.private
+	  endif
+	endfunction
+
+<
 ==============================================================================
 vim:tw=78:fo=tcq2mM:ts=8:ft=help:norl

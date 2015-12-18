@@ -8,29 +8,44 @@ A high functional argument parser
 
 
 INTRODUCTIONS
-==============================================================================
+-------------------------------------------------------------------------------
 
 *Vital.ArgumentParser* is a high functional argument (option) parser.
 There is a Vital.OptionParser but this parser is much flexible while:
 
-1.  Positional argument is supported
-2.  Positional assignment is supported (`--foo bar` instead of `--foo=bar`)
-3.  Quotation is supported (`--foo="bar bar"` or `--foo "bar bar"`)
-4.  Powerful validations
-    -   Warn if one of required positional/optional argument is not specified
-    -   Warn if an argument value is/isn't specified (follow the argument type)
-    -   Warn if an argument value does not follow a specified regex pattern
-    -   Warn if an argument is conflicted with others
-    -   Warn if no superordinate arguments is specified
-    -   Warn if one of dependencies is missing
-5.  Several misc options are supported
-    -   terminal: terminate parsing argument
-    -   deniable: support '--no-' prefix to reverse value
-6.  User can manipulate options with hooks
+1. Positional argument is supported
+2. Positional assignment is supported (`--foo bar` instead of `--foo=bar`)
+3. Quotation is supported (`--foo="bar bar"` or `--foo "bar bar"`)
+4. Powerful validations
+   - Warn when a required argument is missing
+   - Warn when no value is assigned for VALUE or CHOICE argument
+   - Warn when a value is assigned for SWITCH argument
+   - Warn when a value is not found in 'choices' for CHOICE argument
+   - Warn when conflicted arguments are specified together
+   - Warn when argument dependencies are not satisfied
+   - Warn when superordinate argument is not specified together
+   - Warn when a value does not follow a required regex pattern
+   - Validation can enable/disable with settings
+5. Powerful completion
+   - Complete optional arguments
+   - Complete a value of optional/positional argument from a pre-specified
+     list
+   - Complete a value of optional/positional argument from a pre-specified
+     function
+   - Complete unknown arguments
+   - Easy to make a custom complete function
+6. Powerful hook functions
+   - Hook just before/after validation
+   - Hook just before/after completion
+   - Easy to regulate the behavior of parser with hooks
+7. Several misc options
+   - `terminal`: terminate further parsing at a particular argument
+   - `deniable`: support '--no-' prefix to assign negative value
+   - `on_default`: a default value when the option is specified without value
 
 
 INSTALL
-==============================================================================
+-------------------------------------------------------------------------------
 
 ```vim
 NeoBundle 'lambdalisue/vital-ArgumentParser'
@@ -43,7 +58,7 @@ And call the following to bundle this plugin
 ```
 
 USAGE
-==============================================================================
+-------------------------------------------------------------------------------
 
 Create a new instance of a parser with Vital.ArgumentParser.new() function.
 Then define arguments with Vital.ArgumentParser.add_argument().
@@ -52,109 +67,104 @@ Then define arguments with Vital.ArgumentParser.add_argument().
 let s:V = vital#of('vital')
 let s:A = s:V.import('ArgumentParser')
 
-function! s:callback(opts) abort " {{{
-  echo a:opts
-endfunction " }}}
-
-let s:parser = s:A.new({
-      \ 'name': 'ArgumentParser',
-      \ 'description': 'An ArgumentParser demo command',
-      \})
-" basic
-call s:parser.add_argument('--foo', 'A simple argument')
-call s:parser.add_argument('--bar', '-b', 'A simple argument with alias')
-call s:parser.add_argument('--hoge', "multiline\ndescription")
-call s:parser.add_argument('--piyo', ['multiline', 'description', 'with list'])
-call s:parser.add_argument('--puyo', 'ANY argument', { 'type': s:A.types.any })
-call s:parser.add_argument('--poyo', 'VALUE argument', { 'type': s:A.types.value })
-call s:parser.add_argument('--payo', 'CHOICE argument', { 'choices': ['a', 'b', 'c'] })
-
-" required
-" ArgumentParser command will fail without --required
-call s:parser.add_argument('--required', { 'required': 1 })
-
-" conflict
-" ArgumentParser command will fail when more than two of
-" --conflict1, --conflict2, --conflict3 are specified
-call s:parser.add_argument('--conflict1', { 'conflicts': ['conflict2', 'conflict3'] })
-call s:parser.add_argument('--conflict2', { 'conflicts': ['conflict1', 'conflict3'] })
-call s:parser.add_argument('--conflict3', { 'conflicts': ['conflict1', 'conflict2'] })
-
-" superordinate and subordinate (require at least one)
-" ArgumentParser command will fail when --subordinate is specified but
-" non of --superordinate1 nor --superordinate2 is specified
-call s:parser.add_argument('--superordinate1')
-call s:parser.add_argument('--superordinate2')
-call s:parser.add_argument('--subordinate', { 'superordinates': ['superordinate1', 'superordinate2'] })
-
-" dependencies (require all)
-" ArgumentParser command will fail when --baby is specified but
-" --papa nor --mama is specified
-call s:parser.add_argument('--papa')
-call s:parser.add_argument('--mama')
-call s:parser.add_argument('--baby', { 'dependencies': ['papa', 'mama'] })
-
-" pattern
-" ArgumentParser command will fail when --pattern is specified and the value
-" does not follow the specified pattern
-call s:parser.add_argument('--pattern', { 'pattern': '\v\d{3}-\d{4}' })
-
-" positional argument
-call s:parser.add_argument('positional1', { 'choices': [
-      \ 'positional1_a',
-      \ 'positional1_b',
-      \ 'positional1_c',
-      \]})
-call s:parser.add_argument('positional2')
-
-function! s:ArgumentParserParse(...) abort
-  let opts = call(s:parser.parse, a:000, s:parser)
-  if !empty(opts)
-    echo opts
+function! s:get_parser() abort
+  if exists('s:parser')
+    return s:parser
   endif
+  let s:parser = s:A.new({
+        \ 'name': 'ArgumentParserDemo',
+        \ 'description': 'A description of the command',
+        \})
+  call s:parser.add_argument(
+        \ '--foo', '-f', 'A description of foo',
+        \)
+  call s:parser.add_argument(
+        \ '--bar', '-b', 'A description of bar', {
+        \   'choices': ['b', 'ba', 'bar'],
+        \})
+  return s:parser
 endfunction
-function! s:ArgumentParserComplete(...) abort
-  return call(s:parser.complete, a:000, s:parser)
+
+function! s:parse(...) abort
+  let parser = s:get_parser()
+  return call(parser.parse, a:000, parser)
 endfunction
+function! s:complete(...) abort
+  let parser = s:get_parser()
+  return call(parser.complete, a:000, parser)
+endfunction
+function! s:command(...) abort
+  let options = call('s:parse', a:000)
+  if empty(options)
+    return
+  endif
+  echomsg string(options)
+endfunction
+
 command! -nargs=? -range -bang
-      \ -complete=customlist,s:ArgumentParserComplete ArgumentParser
-      \ :call s:ArgumentParserParse(<q-bang>, [<line1>, <line2>], <f-args>)
+        \ -complete=customlist,s:complete
+        \ ArgumentParserDemo
+        \ :call s:command(<q-bang>, [<line1>, <line2>], <f-args>)
 ```
 
-Then, the `:ArgumentParse -h` will show
+Then
 
 ```
-:ArgumentParser [positional1] [positional2] [--help] [--foo] [--bar] [--hoge] [--piyo] [--puyo[=PUYO]] [--poyo=POYO] [--payo={PAYO}] --required [--conflict1] [--conflict2] [--conflict3] [--superordinate1] [--superordinate2] [--subordinate] [--papa] [--mama] [--baby] [--pattern=PATTERN]
+:ArgumentParserDemo --foo
+" {
+"   'foo': 1,
+"   '__args__': ['--foo'],
+"   '__bang__': 0,
+"   '__unknown__': [],
+"   '__range__': [34, 34]
+" }
 
-An ArgumentParser demo command
+:ArgumentParserDemo --foo --bar=bar
+" {
+"   'foo': 1,
+"   'bar': 'bar',
+"   '__args__': ['--foo', '--bar=bar'],
+"   '__bang__': 0,
+"   '__unknown__': [],
+"   '__range__': [34, 34]
+" }
 
-Positional arguments:
-  positional1            
-  positional2            
-
-Optional arguments:
-  -h, --help             show this help
-      --foo              A simple argument
-  -b, --bar              A simple argument with alias
-      --hoge             multiline
-                         description
-      --piyo             multiline
-                         description
-                         with list
-      --puyo[=PUYO]      ANY argument
-      --poyo=POYO        VALUE argument
-      --payo={PAYO}      CHOICE argument
-      --required          (*)
-      --conflict1        
-      --conflict2        
-      --conflict3        
-      --superordinate1   
-      --superordinate2   
-      --subordinate      
-      --papa             
-      --mama             
-      --baby             
-      --pattern=PATTERN  
+:ArgumentParserDemo --help
+" 
+" :ArgumentParserDemo [--help] [--foo] [--bar={BAR}]
+" 
+" A description of the command
+" 
+" Optional arguments:
+"   -h, --help       show this help
+"   -f, --foo        A description of foo
+"   -b, --bar={BAR}  A description of bar
+" 
 ```
 
-See `:help Vital.ArgumentParser`.
+See `:help Vital.ArgumentParser` for more detail.
+
+
+License
+-------------------------------------------------------------------------------
+The MIT License (MIT)
+
+Copyright (c) 2014 Alisue, hashnote.net
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
