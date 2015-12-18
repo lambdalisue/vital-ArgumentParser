@@ -85,7 +85,7 @@ Describe ArgumentParser
   Context .complete_files({arglead}, {cmdline}, {cursorpos}[, {options}]) dict
     Before
       let argument = s:A.new_argument('--foo', {
-            \ '__complete_files_root': s:P.realpath('./test/ArgumentParser/misc'),
+            \ '__complete_files_root': s:P.realpath('test/ArgumentParser/misc'),
             \})
     End
     It return a glob list of files/directories in '__complete_files_root'
