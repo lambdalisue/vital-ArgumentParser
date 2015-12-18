@@ -261,21 +261,21 @@ function! s:complete_dummy(arglead, cmdline, cursorpos, ...) dict abort " {{{
 endfunction " }}}
 function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort " {{{
   let root = expand(get(self, '__complete_files_root', '.'))
-  let root = s:H.remove_last_separator(root) . s:H.separator()
+  let root = s:H.realpath(s:H.remove_last_separator(root) . s:H.separator())
   let candidates = split(
         \ glob(s:H.join(root, a:arglead . '*'), 0),
         \ "\r\\?\n",
         \)
   " substitute 'root'
   call map(candidates, printf(
-        \ 'substitute(fnameescape(v:val), "^%s", "", "")',
-        \ fnameescape(escape(root, '~.^$[]\')),
+        \ 'substitute(v:val, ''^%s'', "", "")',
+        \ escape(root, '~.^$[]'),
         \))
   " substitute /home/<user> to ~/ if ~/ is specified
   if a:arglead =~# '^\~'
     call map(candidates, printf(
-          \ 'substitute(fnameescape(v:val), "^%s", "~", "")',
-          \ fnameescape(escape(expand('~'), '~.^$[]\')),
+          \ 'substitute(v:val, ''^%s'', "~", "")',
+          \ escape(expand('~'), '~.^$[]'),
           \))
   endif
   call map(candidates, printf(
