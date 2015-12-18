@@ -291,16 +291,24 @@ Describe ArgumentParser
       let exp = s:A.types.switch
       Assert Equals(ret.type, exp)
     End
-    It automatically assign 'complete_choices' if {options.complete} is not specified
+    It automatically assign 'complete' function if {options.complete} is not specified
       let ret1 = s:A.new_argument('--foo', { 'type': s:A.types.switch })
       let ret2 = s:A.new_argument('--foo', { 'type': s:A.types.value })
       let ret3 = s:A.new_argument('--foo', { 'type': s:A.types.choice, 'choices': ['A'] })
       let ret4 = s:A.new_argument('--foo', { 'type': s:A.types.any })
       let A = s:A
-      Assert Equals(ret1.complete, A.complete_dummy)
-      Assert Equals(ret2.complete, A.complete_dummy)
-      Assert Equals(ret3.complete, A.complete_choices)
-      Assert Equals(ret4.complete, A.complete_dummy)
+      " script local function cannot be compared in Vim 7.3
+      if v:version >= 704
+        Assert Equals(ret1.complete, A.complete_dummy)
+        Assert Equals(ret2.complete, A.complete_dummy)
+        Assert Equals(ret3.complete, A.complete_choices)
+        Assert Equals(ret4.complete, A.complete_dummy)
+      else
+        Assert Equals(string(ret1.complete), 'function(''s:complete_dummy'')')
+        Assert Equals(string(ret2.complete), 'function(''s:complete_dummy'')')
+        Assert Equals(string(ret3.complete), 'function(''s:complete_choices'')')
+        Assert Equals(string(ret4.complete), 'function(''s:complete_dummy'')')
+      endif
     End
     It throws an exception if more than 4 arguments are specified
       let A = s:A
