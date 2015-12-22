@@ -1,13 +1,11 @@
-vital-ArgumentParser  [![Build Status](https://travis-ci.org/lambdalisue/vital-ArgumentParser.svg)](https://travis-ci.org/lambdalisue/vital-ArgumentParser) [![Build status](https://ci.appveyor.com/api/projects/status/6j306vpi7khi04ui/branch/master?svg=true)](https://ci.appveyor.com/project/lambdalisue/vital-argumentparser/branch/master)
+vital-ArgumentParser
 ==============================================================================
+[![Travis CI](https://img.shields.io/travis/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=Travis%20CI)](https://travis-ci.org/lambdalisue/vital-ArgumentParser) [![AppVeyor](https://img.shields.io/appveyor/ci/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=AppVeyor)](https://ci.appveyor.com/project/lambdalisue/vital-ArgumentParser/branch/master) ![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-yellow.svg?style=flat-square) ![Support Vim 7.3 or above](https://img.shields.io/badge/support-Vim%207.3%20or%20above-yellowgreen.svg?style=flat-square) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE) [![Doc](https://img.shields.io/badge/doc-%3Ah%20vital--ArgumentParser-orange.svg?style=flat-square)](doc/vital-web-api-github.txt)
+
 A high functional argument parser
 
-- Version:   0.2.0
-- Author:   Alisue <lambdalisue@hashnote.net>
-- Support:  Vim 7.3 and above
 
-
-INTRODUCTIONS
+Introductions
 -------------------------------------------------------------------------------
 
 *Vital.ArgumentParser* is a high functional argument (option) parser.
@@ -44,7 +42,7 @@ There is a Vital.OptionParser but this parser is much flexible while:
    - `on_default`: a default value when the option is specified without value
 
 
-INSTALL
+Install
 -------------------------------------------------------------------------------
 
 ```vim
@@ -57,7 +55,7 @@ And call the following to bundle this plugin
 :Vitalize . +ArgumentParser
 ```
 
-USAGE
+Usage
 -------------------------------------------------------------------------------
 
 Create a new instance of a parser with Vital.ArgumentParser.new() function.
@@ -142,7 +140,79 @@ Then
 " 
 ```
 
-See `:help Vital.ArgumentParser` for more detail.
+### Available options for a new instance
+
+Available options for `{options}` of `Vital.ArgumentParser.new({options})`.
+The default values of all switch options except `enable_positional_assign` are 1 (enabled).
+
+| Key name | Description |
+| --- | --- |
+| `name` | A name of the command used in `help()` method |
+| `description` | A description of the command used in `help()` method. `List` or `String` is available |
+| `auto_help` | 1 to create `-h/--help` argument automatically. |
+| `validate_required` | 1 to validate missing required arguments based on `required` option |
+| `validate_types` | 1 to validate invalid value assignments based on `type` option |
+| `validate_conflicts` | 1 to validate conflicted arguments based on `conflicts` option |
+| `validate_superordinates` | 1 to validate missing superordinate arguments based on `superordinates` option |
+| `validate_dependencies` | 1 to validate missing dependencies based on `depends` option |
+| `validate_pattern` | 1 to validate invalid pattern assignment based on `pattern` option |
+| `enable_positional_assign` | 1 to enable `-foo VALUE` type assignment. Default is 0 |
+| `complete_unknown` | A `Funcref` used to complete unknown arguments |
+| `unknown_description` | A description of unknown arguments used in `help()` method |
+
+The following code create a new parser instance with all options.
+
+```vim
+let parser = s:A.new({
+    \ 'name': 'Hello',
+    \ 'description': 'Goodbye',
+    \ 'auto_help': 1,
+    \ 'validate_required': 1,
+    \ 'validate_types': 1,
+    \ 'validate_conflicts': 1,
+    \ 'validate_superordinates': 1,
+    \ 'validate_dependencies': 1,
+    \ 'validate_pattern': 1,
+    \ 'enable_positional_assign': 0,
+    \ 'complete_unknown': s:A.complete_dummy,
+    \ 'unknown_description': 'DUMMY',
+    \})
+echo parsr.help()
+"
+" :Hello -- DUMMY
+"
+" Goodbye
+"
+" Optional arguments:
+"   -h, --help  show this help
+"
+```
+
+See `:help Vital.ArgumentParser.new()` for more detail.
+
+### Available options for a new argument
+
+Available options for `{options}` of `parser.add_argument({name}, {description}, {options})`
+The default values of all switch options except `enable_positional_assign` are 1 (enabled).
+
+| Key name | Description |
+| --- | --- |
+| `description` | A description of the argument used in `help()` method |
+| `alias` | A short name of the argument. Usually the value starts from a single dash (e.g. `-f`) |
+| `terminal` | 1 to terminate further parsing after this argument. Useful to create sub-actions like `git XXX` commands |
+| `required` | 1 to throw an exception when the argument is not specified |
+| `default` | A default value of the argument |
+| `on_default` | A default value of the argument when the argument is specified without value assignment |
+| `type` | Specify a type of the argument. See `:help Vital.ArgumentParser-constants.types` |
+| `deniable` | 1 to allow a negative assignment with `--no-` prefix (e.g. `--verbose` vs `--no-verbose`) |
+| `choices` | A `List` or `Funcref` which return a `List` to restrict available values of the argument |
+| `pattern` | A regex pattern to restrict available values of the argument |
+| `complete` | A complete `Funcref` used to complete the value |
+| `conflicts` | An argument name `List` to specify arguments which conflict with this argument |
+| `dependencies` | An argument name `List` to specify arguments which this argument depends |
+| `superordinates` | An argument name `List` to specify superordinate arguments of this argument |
+
+See `:help Vital.ArgumentParser.new_argument()` or `:help Vital.ArgumentParser-instance.add_argument()`
 
 
 License
