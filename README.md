@@ -1,6 +1,6 @@
 vital-ArgumentParser
 ==============================================================================
-[![Travis CI](https://img.shields.io/travis/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=Travis%20CI)](https://travis-ci.org/lambdalisue/vital-ArgumentParser) [![AppVeyor](https://img.shields.io/appveyor/ci/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=AppVeyor)](https://ci.appveyor.com/project/lambdalisue/vital-ArgumentParser/branch/master) ![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-yellow.svg?style=flat-square) ![Support Vim 7.3 or above](https://img.shields.io/badge/support-Vim%207.3%20or%20above-yellowgreen.svg?style=flat-square) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE) [![Doc](https://img.shields.io/badge/doc-%3Ah%20vital--ArgumentParser-orange.svg?style=flat-square)](doc/vital-web-api-github.txt)
+[![Travis CI](https://img.shields.io/travis/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=Travis%20CI)](https://travis-ci.org/lambdalisue/vital-ArgumentParser) [![AppVeyor](https://img.shields.io/appveyor/ci/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=AppVeyor)](https://ci.appveyor.com/project/lambdalisue/vital-ArgumentParser/branch/master) ![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-yellow.svg?style=flat-square) ![Support Vim 7.3 or above](https://img.shields.io/badge/support-Vim%207.3%20or%20above-yellowgreen.svg?style=flat-square) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE) [![Doc](https://img.shields.io/badge/doc-%3Ah%20vital--ArgumentParser-orange.svg?style=flat-square)](doc/vital-web-api-github.txt)
 
 A high functional argument parser
 
@@ -41,6 +41,13 @@ There is a Vital.OptionParser but this parser is much flexible while:
    - `deniable`: support '--no-' prefix to assign negative value
    - `on_default`: a default value when the option is specified without value
 
+Plugins which use vital-ArgumentParser
+-------------------------------------------------------------------------------
+
+- [lambdalisue/vim-gista](https://github.com/lambdalisue/vim-gista) : A gist manipulation plugin
+- [lambdalisue/vim-gita](https://github.com/lambdalisue/vim-gita) : A git manipulation plugin
+
+Let me know if you are using this module ;-)
 
 Install
 -------------------------------------------------------------------------------

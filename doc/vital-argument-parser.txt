@@ -1,6 +1,6 @@
 *vital-argument-parser.txt*	A high functional argument parser
 
-Version: 0.2.0
+Version: 1.0.0
 Author:  Alisue <lambdalisue@hashnote.net>	*Vital.ArgumentParser-author*
 Support: Vim 7.3 and above
 License: MIT license  {{{
