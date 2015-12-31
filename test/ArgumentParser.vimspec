@@ -1257,18 +1257,18 @@ Describe ArgumentParser
               \})
         call parser.add_argument('--foo', 'foo definition')
         call parser.add_argument('--bar', '-b', 'bar definition')
+        call parser.add_argument('alpha', 'alpha definition')
         call parser.add_argument('--hoge', 'hoge definition', { 'type': s:A.types.any })
         call parser.add_argument('--piyo', 'piyo definition', { 'type': s:A.types.value })
         call parser.add_argument('--puyo', 'puyo definition', { 'choices': ['A', 'B', 'C'] })
         call parser.add_argument('--papa', 'papa definition', { 'deniable': 1 } )
         call parser.add_argument('--mama', 'mama definition', { 'required': 1 } )
-        call parser.add_argument('alpha', 'alpha definition')
         call parser.add_argument('beta', 'beta definition', { 'required': 1 })
       End
       It return a help
         let ret = parser.help()
         let exp = [
-              \ ':Foo [alpha] beta [--foo] [--bar] [--hoge[=HOGE]] [--piyo=PIYO] [--puyo={PUYO}] [--[no-]papa] --mama -- hoge hoge',
+              \ ':Foo [--foo] [--bar] [alpha] [--hoge[=HOGE]] [--piyo=PIYO] [--puyo={PUYO}] [--[no-]papa] --mama beta -- hoge hoge',
               \ '',
               \ 'bar bar bar',
               \ '',
