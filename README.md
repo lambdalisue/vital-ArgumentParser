@@ -1,6 +1,6 @@
 vital-ArgumentParser
 ==============================================================================
-[![Travis CI](https://img.shields.io/travis/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=Travis%20CI)](https://travis-ci.org/lambdalisue/vital-ArgumentParser) [![AppVeyor](https://img.shields.io/appveyor/ci/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=AppVeyor)](https://ci.appveyor.com/project/lambdalisue/vital-ArgumentParser/branch/master) ![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-yellow.svg?style=flat-square) ![Support Vim 7.3 or above](https://img.shields.io/badge/support-Vim%207.3%20or%20above-yellowgreen.svg?style=flat-square) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE) [![Doc](https://img.shields.io/badge/doc-%3Ah%20vital--ArgumentParser-orange.svg?style=flat-square)](doc/vital-web-api-github.txt)
+[![Travis CI](https://img.shields.io/travis/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=Travis%20CI)](https://travis-ci.org/lambdalisue/vital-ArgumentParser) [![AppVeyor](https://img.shields.io/appveyor/ci/lambdalisue/vital-ArgumentParser/master.svg?style=flat-square&label=AppVeyor)](https://ci.appveyor.com/project/lambdalisue/vital-ArgumentParser/branch/master) ![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-yellow.svg?style=flat-square) ![Support Vim 7.3 or above](https://img.shields.io/badge/support-Vim%207.3%20or%20above-yellowgreen.svg?style=flat-square) [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE) [![Doc](https://img.shields.io/badge/doc-%3Ah%20vital--ArgumentParser-orange.svg?style=flat-square)](doc/vital-argument-parser.txt)
 
 A high functional argument parser
 
@@ -199,8 +199,7 @@ See `:help Vital.ArgumentParser.new()` for more detail.
 
 ### Available options for a new argument
 
-Available options for `{options}` of `parser.add_argument({name}, {description}, {options})`
-The default values of all switch options except `enable_positional_assign` are 1 (enabled).
+Available options for `{options}` of `parser.add_argument({name}, {description}, {options})`.
 
 | Key name | Description |
 | --- | --- |
