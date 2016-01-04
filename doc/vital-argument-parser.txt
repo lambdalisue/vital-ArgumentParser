@@ -125,7 +125,7 @@ like:
 	command! -nargs=? -range -bang
 	        \ -complete=customlist,s:complete
 	        \ ArgumentParserDemo
-	        \ :call s:command(<q-bang>, [<line1>, <line2>], <f-args>)
+	        \ :call s:command(<q-bang>, [<line1>, <line2>], <q-args>)
 <
 The code above create a new command 'ArgumentParserDemo' which is like:
 >
@@ -462,7 +462,7 @@ Parser.get_missing_dependencies({name}, {options})
 	Return a |List| of missing dependencies of {name} in {options}.
 
 			*Vital.ArgumentParser-instance.parse()*
-Parser.parse({bang}, {range}[, {f-args}, {options}])
+Parser.parse({bang}, {range}[, {q-args}, {options}])
 	
 	Parse arguments of |command| and return a |Dictionary|
 
@@ -473,9 +473,9 @@ Parser.parse({bang}, {range}[, {f-args}, {options}])
 	A |List| which indicate a region of the buffer.
 	Use [<line1>, <line2>].
 
-	{f-args}
+	{q-args}
 	A |String| which indicate specified arguments.
-	Use <f-args>.
+	Use <q-args>.
 
 	The return value contains all parsed arguments and the following
 	special properties

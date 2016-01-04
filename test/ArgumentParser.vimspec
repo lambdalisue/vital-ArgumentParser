@@ -569,7 +569,7 @@ Describe ArgumentParser
       End
     End
 
-    Context .parse({bang}, {range}[, {f-args}, {options}])
+    Context .parse({bang}, {range}[, {q-args}, {options}])
       Before
         let parser = s:A.new()
         let parser._ncalls = {

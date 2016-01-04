@@ -109,7 +109,7 @@ endfunction
 command! -nargs=? -range -bang
         \ -complete=customlist,s:complete
         \ ArgumentParserDemo
-        \ :call s:command(<q-bang>, [<line1>, <line2>], <f-args>)
+        \ :call s:command(<q-bang>, [<line1>, <line2>], <q-args>)
 ```
 
 Then
