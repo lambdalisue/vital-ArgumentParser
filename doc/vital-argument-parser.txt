@@ -263,6 +263,11 @@ new([{settings}])			*Vital.ArgumentParser.new()*
 		A description of unknown arguments in |String| used in help.
 		*Vital.ArgumentParser-settings.unknown_description*
 
+		'complete_threshold'
+		A |Number| to limit the number of candidates of complete
+		function. The default value is 0 and no limitation exists.
+		*Vital.ArgumentParser-settings.complete_threshold*
+
 					*Vital.ArgumentParser.new_argument()*
 new_argument({name})
 new_argument({name}, {description})

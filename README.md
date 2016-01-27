@@ -166,6 +166,7 @@ The default values of all switch options except `enable_positional_assign` are 1
 | `enable_positional_assign` | 1 to enable `-foo VALUE` type assignment. Default is 0 |
 | `complete_unknown` | A `Funcref` used to complete unknown arguments |
 | `unknown_description` | A description of unknown arguments used in `help()` method |
+| `complete_threshold` | Limit the number of candidates of complete function |
 
 The following code create a new parser instance with all options.
 
@@ -183,6 +184,7 @@ let parser = s:A.new({
     \ 'enable_positional_assign': 0,
     \ 'complete_unknown': s:A.complete_dummy,
     \ 'unknown_description': 'DUMMY',
+    \ 'complete_threshold': 0,
     \})
 echo parsr.help()
 "
