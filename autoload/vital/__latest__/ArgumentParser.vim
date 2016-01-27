@@ -712,13 +712,15 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort " {{{
   return candidates
 endfunction " }}}
 function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos, options) abort " {{{
-  let m = matchlist(a:arglead, '\v^\-\-?([^=]+)\=(.*)')
-  let name = m[1]
-  let value = m[2]
+  let m = matchlist(a:arglead, '\v^(\-\-?([^=]+)\=)(.*)')
+  let prefix = m[1]
+  let name = m[2]
+  let value = m[3]
   if has_key(self.arguments, name)
     let candidates = self.arguments[name].complete(
           \ value, a:cmdline, a:cursorpos, a:options,
           \)
+    call map(candidates, 'prefix . v:val')
   else
     let candidates = []
   endif

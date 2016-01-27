@@ -1122,7 +1122,7 @@ Describe ArgumentParser
               \)
         Assert Equals(
               \ sort(candidates),
-              \ sort(['foo', 'foobar', 'bar', 'hoge']),
+              \ sort(['--foo=foo', '--foo=foobar', '--foo=bar', '--foo=hoge']),
               \)
       End
       It return eliminated candidates of a specified argument if a part of value is specified
@@ -1134,7 +1134,7 @@ Describe ArgumentParser
               \)
         Assert Equals(
               \ sort(candidates),
-              \ sort(['foo', 'foobar']),
+              \ sort(['--foo=foo', '--foo=foobar']),
               \)
       End
     End
