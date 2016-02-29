@@ -40,6 +40,7 @@ There is a Vital.OptionParser but this parser is much flexible while:
    - `terminal`: terminate further parsing at a particular argument
    - `deniable`: support '--no-' prefix to assign negative value
    - `on_default`: a default value when the option is specified without value
+8. Multiple optional argument is supported (e.g. `--multi=a --multi=b --mutli=c`)
 
 Plugins which use vital-ArgumentParser
 -------------------------------------------------------------------------------

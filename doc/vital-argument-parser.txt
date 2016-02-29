@@ -76,7 +76,7 @@ Python. The following features are provided:
    - 'terminal': terminate further parsing at a particular argument
    - 'deniable': support '--no-' prefix to assign negative value
    - 'on_default': a default value when the option is specified without value
-
+8. Multiple optional argument is supported (e.g. --multi=a --multi=b --multi=c)
 
 ==============================================================================
 USAGE					*Vital.ArgumentParser-usage*
@@ -186,6 +186,11 @@ types					*Vital.ArgumentParser-constants.types*
 	'choice'
 	This type of arguments requires a value in 'choices' option. This is a
 	default argument type when 'choices' option is specified.
+
+	'multiple'
+	This type of arguments return a |List| instead of |String| and can
+	hold multiple values. When 'pattern' option is specified, the pattern
+	validation will performed to each item of the |List|.
 
 ------------------------------------------------------------------------------
 FUNCTIONS				*Vital.ArgumentParser-functions*

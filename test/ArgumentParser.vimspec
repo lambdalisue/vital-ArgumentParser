@@ -614,6 +614,7 @@ Describe ArgumentParser
         call parser.add_argument('puyo')
         call parser.add_argument('--terminal', { 'terminal': 1 })
         call parser.add_argument('--on_default', { 'on_default': 'hello' })
+        call parser.add_argument('--multiple', { 'type': s:A.types.multiple })
       End
       It correctly parse optional arguments (list)
         let ret = parser._parse_args(['--foo', '-b', '-H=hoge'])
@@ -702,6 +703,31 @@ Describe ArgumentParser
               \ '__unknown__': [],
               \ '__args__': ['--on_default'],
               \ 'on_default': 'hello',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It correctly parse multiple optional arguments (list)
+        let ret = parser._parse_args([
+              \ '--multiple=c', '--foo', '--multiple=b', '-H=hoge', '--multiple=a'
+              \])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--multiple=c', '--foo', '--multiple=b', '-H=hoge', '--multiple=a'],
+              \ 'foo': 1,
+              \ 'H': 'hoge',
+              \ 'multiple': ['c', 'b', 'a'],
+              \}
+        Assert Equals(ret, exp)
+      End
+      It correctly parse multiple optional arguments ('--multiple foo' type)
+        let parser.enable_positional_assign = 1
+        let ret = parser._parse_args([
+              \ '--multiple', 'c', '--multiple', 'b', '--multiple', 'a',
+              \])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--multiple', 'c', '--multiple', 'b', '--multiple', 'a'],
+              \ 'multiple': ['c', 'b', 'a'],
               \}
         Assert Equals(ret, exp)
       End
@@ -875,6 +901,9 @@ Describe ArgumentParser
               \ 'type': s:A.types.choice,
               \ 'choices': function('Validate_types_choices'),
               \})
+        call parser.add_argument('--multiple', {
+              \ 'type': s:A.types.multiple,
+              \})
       End
       It does nothing if all arguments are correctly specified
         let options = {
@@ -892,6 +921,13 @@ Describe ArgumentParser
               \ 'hoge': 1,
               \}
         Throw /Argument "bar" is VALUE argument but no value is specified/
+              \ parser._validate_types(options)
+      End
+      It throws an exception if no value is specified to MULTIPLE argument
+        let options = {
+              \ 'multiple': 1,
+              \}
+        Throw /Argument "multiple" is MULTIPLE argument but no value is specified/
               \ parser._validate_types(options)
       End
       It throws an exception if value is specified to SWITCH argument
@@ -1034,6 +1070,10 @@ Describe ArgumentParser
         call parser.add_argument('--foo', {
               \ 'pattern': '^\d\d\d-\d\d\d\d$'
               \})
+        call parser.add_argument('--multiple', {
+              \ 'pattern': '^\d\d\d-\d\d\d\d$',
+              \ 'type': s:A.types.multiple,
+              \})
       End
       It does nothing if the value follow the specified pattern
         let options = {
@@ -1046,6 +1086,17 @@ Describe ArgumentParser
               \ 'foo': '00-0000',
               \}
         Throw /A value of argument "foo" does not follow a specified pattern "\^\\d\\d\\d-\\d\\d\\d\\d\$"/
+              \ parser._validate_pattern(options)
+      End
+      It throws an exception if one of the value does not follow the specified pattern (MULTIPLE)
+        let options = {
+              \ 'multiple': [
+              \   '000-0000',
+              \   '00-0000',
+              \   '000-0000',
+              \ ],
+              \}
+        Throw /One of value "00-0000" of argument "multiple" does not follow a specified pattern "\^\\d\\d\\d-\\d\\d\\d\\d\$"/
               \ parser._validate_pattern(options)
       End
     End
@@ -1226,6 +1277,41 @@ Describe ArgumentParser
         Assert Equals(
               \ sort(candidates),
               \ sort(['--foo', '--foobar']),
+              \)
+      End
+      It always returns multiple arguments
+        call parser.add_argument('--multiple', {
+              \ 'type': s:A.types.multiple,
+              \})
+        let candidates = parser._complete_optional_argument(
+              \ '-',
+              \ '-',
+              \ [],
+              \ { 'bar': 1, 'multiple': ['foo'] },
+              \)
+        " --bar is already specified thus not included
+        " --hoge conflicts with --bar thus not included
+        " --puyo require --piyo thus not included
+        " hello is positional thus not included
+        " --multiple is MULTIPLE argument thus included even it is already specified
+        Assert Equals(
+              \ sort(candidates),
+              \ sort(['--foo', '--foobar', '-f', '--piyo', '--multiple']),
+              \)
+
+        let candidates = parser._complete_optional_argument(
+              \ '-',
+              \ '-',
+              \ [],
+              \ { 'bar': 1 },
+              \)
+        " --bar is already specified thus not included
+        " --hoge conflicts with --bar thus not included
+        " --puyo require --piyo thus not included
+        " hello is positional thus not included
+        Assert Equals(
+              \ sort(candidates),
+              \ sort(['--foo', '--foobar', '-f', '--piyo', '--multiple']),
               \)
       End
     End
