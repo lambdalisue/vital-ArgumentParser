@@ -39,23 +39,25 @@ endfunction
 
 " Public functions
 function! s:splitargs(str) abort
-  let single_quote = '\v''\zs[^'']+\ze'''
-  let double_quote = '\v"\zs[^"]+\ze"'
-  let bare_strings = '\v[^ \t''"]+'
-  let pattern = printf('\v%%(%s|%s|%s)',
+  let single_quote = '''\zs[^'']\+\ze'''
+  let double_quote = '"\zs[^"]\+\ze"'
+  let bare_strings = '[^ \t''"]\+'
+  let pattern = printf('\%%(%s\|%s\|%s\)',
         \ single_quote,
         \ double_quote,
         \ bare_strings,
         \)
-  return split(a:str, printf('\v%s*\zs%%(\s+|$)\ze', pattern))
+  return split(a:str, printf('%s*\zs\%%(\s\+\|$\)\ze', pattern))
 endfunction
+
 function! s:strip_quotes(str) abort
-  if a:str =~# '\v^%(".*"|''.*'')$'
+  if a:str =~# '^\%(".*"\|''.*''\)$'
     return a:str[1:-2]
   else
     return a:str
   endif
 endfunction
+
 function! s:new(...) abort
   let settings = extend({
         \ 'name': '',
@@ -119,6 +121,7 @@ function! s:new(...) abort
   endif
   return parser
 endfunction
+
 " @vimlint(EVL104, 1, l:options)
 " @vimlint(EVL104, 1, l:description)
 " @vimlint(EVL104, 1, l:alias)
@@ -256,6 +259,7 @@ endfunction
 function! s:complete_dummy(arglead, cmdline, cursorpos, ...) dict abort
   return []
 endfunction
+
 function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort
   let root = expand(get(self, '__complete_files_root', '.'))
   let root = s:Path.realpath(s:Path.remove_last_separator(root) . s:Path.separator())
@@ -265,29 +269,30 @@ function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort
         \)
   " substitute 'root'
   call map(candidates, printf(
-        \ 'substitute(v:val, ''^%s'', "", "")',
+        \ 'substitute(v:val, ''^%s'', '''', '''')',
         \ escape(root, '\~.^$[]'),
         \))
   " substitute /home/<user> to ~/ if ~/ is specified
   if a:arglead =~# '^\~'
     call map(candidates, printf(
-          \ 'substitute(v:val, ''^%s'', "~", "")',
+          \ 'substitute(v:val, ''^%s'', ''~'', '''')',
           \ escape(expand('~'), '\~.^$[]'),
           \))
   endif
   call map(candidates, printf(
-        \ 'isdirectory(v:val) ? v:val . "%s" : v:val',
+        \ 'isdirectory(v:val) ? v:val . ''%s'' : v:val',
         \ s:Path.path_separator(),
         \))
   return candidates
 endfunction
+
 function! s:complete_choices(arglead, cmdline, cursorpos, ...) dict abort
   let options = get(a:000, 0, {})
   if !has_key(self, 'get_choices')
     return []
   endif
   let candidates = self.get_choices(options)
-  call filter(candidates, printf('v:val =~# "^%s"', a:arglead))
+  call filter(candidates, printf('v:val =~# ''^%s''', a:arglead))
   return candidates
 endfunction
 
@@ -386,31 +391,36 @@ function! s:parser.get_conflicted_arguments(name, options) abort
   if empty(conflicts)
     return []
   endif
-  let conflicts_pattern = printf('\v^%%(%s)$', join(conflicts, '|'))
+  let conflicts_pattern = printf('^\%%(%s\)$', join(conflicts, '\|'))
   return filter(keys(a:options), 'v:val =~# conflicts_pattern')
 endfunction
+
 function! s:parser.get_superordinate_arguments(name, options) abort
   let superordinates = self.arguments[a:name].superordinates
   if empty(superordinates)
     return []
   endif
-  let superordinates_pattern = printf('\v^%%(%s)$', join(superordinates, '|'))
+  let superordinates_pattern = printf('^\%%(%s\)$', join(superordinates, '\|'))
   return filter(keys(a:options), 'v:val =~# superordinates_pattern')
 endfunction
+
 function! s:parser.get_missing_dependencies(name, options) abort
   let dependencies = self.arguments[a:name].dependencies
   if empty(dependencies)
     return []
   endif
-  let exists_pattern = printf('\v^%%(%s)$', join(keys(a:options), '|'))
+  let exists_pattern = printf('^\%%(%s\)$', join(keys(a:options), '\|'))
   return filter(copy(dependencies), 'v:val !~# exists_pattern')
 endfunction
+
 function! s:parser.get_positional_arguments() abort
   return deepcopy(self.positional)
 endfunction
+
 function! s:parser.get_optional_arguments() abort
   return map(filter(values(self.arguments), '!v:val.positional'), 'v:val.name')
 endfunction
+
 function! s:parser.get_optional_argument_aliases() abort
   return keys(self.alias)
 endfunction
@@ -447,6 +457,7 @@ function! s:parser.parse(bang, range, ...) abort
   call self.hooks.post_validate(options)
   return options
 endfunction
+
 " @vimlint(EVL104, 1, l:name)
 " @vimlint(EVL101, 1, l:value)
 function! s:parser._parse_args(args, ...) abort
@@ -457,7 +468,7 @@ function! s:parser._parse_args(args, ...) abort
   let options.__args__ = extend(options.__args__, a:args)
   let length = len(options.__args__)
   let cursor = 0
-  let arguments_pattern = printf('\v^%%(%s)$', join(keys(self.arguments), '|'))
+  let arguments_pattern = printf('^\%%(%s\)$', join(keys(self.arguments), '\|'))
   let positional_length = len(self.positional)
   let positional_cursor = 0
   while cursor < length
@@ -469,7 +480,7 @@ function! s:parser._parse_args(args, ...) abort
       break
     elseif cword =~# '^--\?'
       " optional argument
-      let m = matchlist(cword, '\v^\-\-?([^=]+|)%(\=(.*)|)')
+      let m = matchlist(cword, '^--\?\([^=]\+\|\)\%(=\(.*\)\|\)')
       let name = get(self.alias, m[1], m[1])
       if name =~# arguments_pattern
         if !empty(m[2])
@@ -530,15 +541,17 @@ function! s:parser._parse_args(args, ...) abort
         \)
   return options
 endfunction " @vimlint(EVL104, 0, l:name) @vimlint(EVL101, 0, l:value) }}}
+
 function! s:parser._regulate_options(options) abort
   " assign default values
-  let exists_pattern = printf('\v^%%(%s)$', join(keys(a:options), '|'))
+  let exists_pattern = printf('^\%%(%s\)$', join(keys(a:options), '\|'))
   for argument in values(self.arguments)
     if !empty(argument.default) && argument.name !~# exists_pattern
       let a:options[argument.name] = argument.default
     endif
   endfor
 endfunction
+
 function! s:parser._validate_options(options) abort
   if self.validate_required
     call self._validate_required(a:options)
@@ -559,6 +572,7 @@ function! s:parser._validate_options(options) abort
     call self._validate_pattern(a:options)
   endif
 endfunction
+
 function! s:parser._validate_required(options) abort
   let exist_required = keys(a:options)
   for name in self.required
@@ -570,9 +584,10 @@ function! s:parser._validate_required(options) abort
     endif
   endfor
 endfunction
+
 function! s:parser._validate_types(options) abort
   for [name, value] in items(a:options)
-    if name !~# '\v^__.*__$'
+    if name !~# '^__.*__$'
       let type = self.arguments[name].type
       if type == s:const.types.value && s:Prelude.is_number(value)
         call s:_throw(printf(
@@ -591,7 +606,7 @@ function! s:parser._validate_types(options) abort
               \))
       elseif type == s:const.types.choice
         let candidates = self.arguments[name].get_choices(a:options)
-        let pattern = printf('\v^%%(%s)$', join(candidates, '|'))
+        let pattern = printf('^\%%(%s\)$', join(candidates, '\|'))
         if s:Prelude.is_number(value)
           call s:_throw(printf(
                 \ 'Argument "%s" is CHOICE argument but no value is specified',
@@ -609,9 +624,10 @@ function! s:parser._validate_types(options) abort
     silent! unlet value
   endfor
 endfunction
+
 function! s:parser._validate_conflicts(options) abort
   for [name, value] in items(a:options)
-    if name !~# '\v^__.*__$'
+    if name !~# '^__.*__$'
       let conflicts = self.get_conflicted_arguments(name, a:options)
       if !empty(conflicts)
         call s:_throw(printf(
@@ -624,9 +640,10 @@ function! s:parser._validate_conflicts(options) abort
     silent! unlet value
   endfor
 endfunction
+
 function! s:parser._validate_superordinates(options) abort
   for [name, value] in items(a:options)
-    if name !~# '\v^__.*__$'
+    if name !~# '^__.*__$'
       let superordinates = self.get_superordinate_arguments(name, a:options)
       if !empty(self.arguments[name].superordinates) && empty(superordinates)
         call s:_throw(printf(
@@ -639,9 +656,10 @@ function! s:parser._validate_superordinates(options) abort
     silent! unlet value
   endfor
 endfunction
+
 function! s:parser._validate_dependencies(options) abort
   for [name, value] in items(a:options)
-    if name !~# '\v^__.*__$'
+    if name !~# '^__.*__$'
       let dependencies = self.get_missing_dependencies(name, a:options)
       if !empty(dependencies)
         call s:_throw(printf(
@@ -654,9 +672,10 @@ function! s:parser._validate_dependencies(options) abort
     silent! unlet value
   endfor
 endfunction
+
 function! s:parser._validate_pattern(options) abort
   for [name, value] in items(a:options)
-    if name !~# '\v^__.*__$'
+    if name !~# '^__.*__$'
       let pattern = self.arguments[name].pattern
       if !empty(pattern)
         if s:Prelude.is_string(value) && value !~# pattern
@@ -680,9 +699,10 @@ function! s:parser._validate_pattern(options) abort
     silent! unlet value
   endfor
 endfunction
+
 function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort
-  let cmdline = substitute(a:cmdline, '\v^[^ ]+\s', '', '')
-  let cmdline = substitute(cmdline, '\v[^ ]+$', '', '')
+  let cmdline = substitute(a:cmdline, '^[^ ]\+\s', '', '')
+  let cmdline = substitute(cmdline, '[^ ]\+$', '', '')
   let options = extend(
         \ self._parse_args(s:splitargs(cmdline)),
         \ get(a:000, 0, {}),
@@ -713,14 +733,14 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort
           \ a:cursorpos,
           \ options,
           \)
-  elseif a:arglead =~# '\v^\-\-?[^=]+\='
+  elseif a:arglead =~# '^--\?[^=]\+='
     let candidates = self._complete_optional_argument_value(
           \ a:arglead,
           \ cmdline,
           \ a:cursorpos,
           \ options,
           \)
-  elseif a:arglead =~# '\v^\-\-?'
+  elseif a:arglead =~# '^--\?'
     let candidates = self._complete_optional_argument(
           \ a:arglead,
           \ cmdline,
@@ -742,8 +762,9 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort
     return candidates
   endif
 endfunction
+
 function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos, options) abort
-  let m = matchlist(a:arglead, '\v^(\-\-?([^=]+)\=)(.*)')
+  let m = matchlist(a:arglead, '^\(--\?\([^=]\+\)=\)\(.*\)')
   let prefix = m[1]
   let name = m[2]
   let value = m[3]
@@ -758,6 +779,7 @@ function! s:parser._complete_optional_argument_value(arglead, cmdline, cursorpos
   call self.hooks.post_complete_argument_value(candidates, a:options)
   return candidates
 endfunction
+
 function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, options) abort
   let candidates = []
   for argument in values(self.arguments)
@@ -782,6 +804,7 @@ function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, opti
   call self.hooks.post_complete_optional_argument(candidates, a:options)
   return candidates
 endfunction
+
 function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorpos, options) abort
   let candidates = []
   let npositional = -1
@@ -829,7 +852,7 @@ function! s:parser.help() abort
       endif
     else
       let [definition, description] = self._help_optional_argument(argument)
-      let partial_definition = substitute(definition, '\v^%([ ]+|\-.,\s)', '', '')
+      let partial_definition = substitute(definition, '^\%(\s\+\|-.,\s\)', '', '')
       call add(definitions.optional, definition)
       call add(descriptions.optional, description)
       if argument.required
@@ -892,6 +915,7 @@ function! s:parser.help() abort
   endfor
   return join(buflines, "\n")
 endfunction
+
 function! s:parser._help_optional_argument(arg) abort
   if empty(a:arg.alias)
     let alias = '    '
@@ -941,6 +965,7 @@ function! s:parser._help_optional_argument(arg) abort
   endif
   return [definition, description]
 endfunction
+
 function! s:parser._help_positional_argument(arg) abort
   let definition = printf('%s', a:arg.name)
   let description = join(a:arg.description, "\n")
@@ -953,18 +978,25 @@ endfunction
 " Available user hooks
 function! s:parser.hooks.pre_validate(options) abort
 endfunction
+
 function! s:parser.hooks.post_validate(options) abort
 endfunction
+
 function! s:parser.hooks.pre_complete(options) abort
 endfunction
+
 function! s:parser.hooks.post_complete(candidates, options) abort
 endfunction
+
 function! s:parser.hooks.post_complete_argument_value(candidates, options) abort
 endfunction
+
 function! s:parser.hooks.post_complete_optional_argument(candidates, options) abort
 endfunction
+
 function! s:parser.hooks.post_complete_positional_argument(candidates, options) abort
 endfunction
+
 function! s:parser.hooks.validate() abort
   let known_hooks = [
         \ 'pre_validate',
