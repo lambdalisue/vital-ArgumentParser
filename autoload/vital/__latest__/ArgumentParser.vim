@@ -507,11 +507,20 @@ function! s:parser._parse_args(args, ...) abort
         call add(options.__unknown__, cword)
       endif
     else
-      if positional_cursor < positional_length
-        let name = self.positional[positional_cursor]
-        let options[name] = s:strip_quotes(cword)
+      while positional_cursor < positional_length
         let positional_cursor += 1
-      else
+        let name = self.positional[positional_cursor - 1]
+        if !empty(self.arguments[name].conflicts) && !empty(self.get_conflicted_arguments(name, options))
+          continue
+        elseif !empty(self.arguments[name].superordinates) && empty(self.get_superordinate_arguments(name, options))
+          continue
+        elseif !empty(self.arguments[name].dependencies) && !empty(self.get_missing_dependencies(name, options))
+          continue
+        endif
+        let options[name] = s:strip_quotes(cword)
+        break
+      endwhile
+      if !has_key(options, name)
         let name = ''
         call add(options.__unknown__, cword)
       endif

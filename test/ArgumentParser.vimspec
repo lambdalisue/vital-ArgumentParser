@@ -600,6 +600,14 @@ Describe ArgumentParser
         call parser.add_argument('--terminal', { 'terminal': 1 })
         call parser.add_argument('--on_default', { 'on_default': 'hello' })
         call parser.add_argument('--multiple', { 'type': s:A.types.multiple })
+        call parser.add_argument('--a1')
+        call parser.add_argument('--a21')
+        call parser.add_argument('--a22')
+        call parser.add_argument('--a31')
+        call parser.add_argument('--a32')
+        call parser.add_argument('conflicts', { 'conflicts': ['a1'] })
+        call parser.add_argument('superordinates', { 'superordinates': ['a21', 'a22'] })
+        call parser.add_argument('dependencies', { 'dependencies': ['a31', 'a32'] })
       End
       It correctly parse optional arguments (list)
         let ret = parser._parse_args(['--foo', '-b', '-H=hoge'])
@@ -623,10 +631,11 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly parse arguments (list)
-        let ret = parser._parse_args(['hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
+        let ret = parser._parse_args(['--a1', 'hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
         let exp = {
               \ '__unknown__': ['--unknown', 'unk'],
-              \ '__args__': ['hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
+              \ '__args__': ['--a1', 'hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
+              \ 'a1': 1,
               \ 'foo': 1,
               \ 'bar': 1,
               \ 'piyo': 'hi',
@@ -713,6 +722,96 @@ Describe ArgumentParser
               \ '__unknown__': [],
               \ '__args__': ['--multiple', 'c', '--multiple', 'b', '--multiple', 'a'],
               \ 'multiple': ['c', 'b', 'a'],
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should skip positional argument assignment when the conflicted arguments are specified
+        let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': ['c'],
+              \ '__args__': ['--a1', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \}
+        Assert Equals(ret, exp)
+
+        let ret = parser._parse_args(['a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['a', 'b', 'c'],
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \ 'conflicts': 'c',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should skip positional argument assignment when the non of superordinates is specified
+        let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': ['c'],
+              \ '__args__': ['--a1', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \}
+        Assert Equals(ret, exp)
+
+        let ret = parser._parse_args(['--a1', '--a21', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--a1', '--a21', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'a21': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \ 'superordinates': 'c',
+              \}
+        Assert Equals(ret, exp)
+      End
+      It should skip positional argument assignment when the one of dependencies is not specified
+        let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': ['c'],
+              \ '__args__': ['--a1', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \}
+        Assert Equals(ret, exp)
+
+        let ret = parser._parse_args(['--a1', '--a31', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': ['c'],
+              \ '__args__': ['--a1', '--a31', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'a31': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \}
+        Assert Equals(ret, exp)
+
+        let ret = parser._parse_args(['--a1', '--a32', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': ['c'],
+              \ '__args__': ['--a1', '--a32', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'a32': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \}
+        Assert Equals(ret, exp)
+
+        let ret = parser._parse_args(['--a1', '--a31', '--a32', 'a', 'b', 'c'])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['--a1', '--a31', '--a32', 'a', 'b', 'c'],
+              \ 'a1': 1,
+              \ 'a31': 1,
+              \ 'a32': 1,
+              \ 'piyo': 'a',
+              \ 'puyo': 'b',
+              \ 'dependencies': 'c',
               \}
         Assert Equals(ret, exp)
       End
