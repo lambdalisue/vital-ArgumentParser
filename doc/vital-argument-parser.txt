@@ -414,18 +414,24 @@ new_argument({name}, {alias}, {description}, {options})
 		A argument name ||List| which conflict with the argument.
 		An exception will be thrown when any arguments in the list is
 		specified together with the argument.
+		A completion candidates for the option will be shown only when
+		there are no conflicted options specified.
 		See |Vital.ArgumentParser-settings.validate_conflicts|.
 
 		'dependencies'
 		A argument name |List| which is required for the argument.
 		An exception will be thrown when any arguments in the list is
 		not specified together with the argument.
+		A completion candidates for the option will be shown only when
+		all dependencies are specified.
 		See |Vital.ArgumentParser-settings.validate_dependencies|.
 
 		'superordinates'
 		A argument name |List| which is superordinate of the argument.
 		An exception will be thrown when non of arguments in the list
 		is not specified together with the argument.
+		A completion candidates for the option will be shown only when
+		one of superordinate option is specified.
 		See |Vital.ArgumentParser-settings.validate_superordinates|.
 
 ------------------------------------------------------------------------------
