@@ -47,15 +47,11 @@ function! s:splitargs(str) abort
         \ double_quote,
         \ bare_strings,
         \)
-  return split(a:str, printf('%s*\zs\%%(\s\+\|$\)\ze', pattern))
+  return split(a:str, pattern . '*\zs\%(\s\+\|$\)\ze')
 endfunction
 
 function! s:strip_quotes(str) abort
-  if a:str =~# '^\%(".*"\|''.*''\)$'
-    return a:str[1:-2]
-  else
-    return a:str
-  endif
+  return a:str =~# '^\%(".*"\|''.*''\)$' ? a:str[1:-2] : a:str
 endfunction
 
 function! s:new(...) abort
@@ -274,10 +270,7 @@ function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort
         \))
   " substitute /home/<user> to ~/ if ~/ is specified
   if a:arglead =~# '^\~'
-    call map(candidates, printf(
-          \ 'substitute(v:val, ''^%s'', ''~'', '''')',
-          \ escape(expand('~'), '\~.^$[]'),
-          \))
+    call map(candidates, 'fnameescape(v:val, '':~'')')
   endif
   call map(candidates, printf(
         \ 'isdirectory(v:val) ? v:val . ''%s'' : v:val',
@@ -292,8 +285,7 @@ function! s:complete_choices(arglead, cmdline, cursorpos, ...) dict abort
     return []
   endif
   let candidates = self.get_choices(options)
-  call filter(candidates, printf('v:val =~# ''^%s''', a:arglead))
-  return candidates
+  return filter(copy(candidates), printf('v:val =~# ''^%s''', a:arglead))
 endfunction
 
 " Instance
@@ -356,6 +348,7 @@ function! s:parser.register_argument(argument) abort
     let self.alias[a:argument.alias] = a:argument.name
   endif
 endfunction
+
 function! s:parser.unregister_argument(argument) abort
   " Validate argument
   if !has_key(self.arguments, a:argument.name)
@@ -380,6 +373,7 @@ function! s:parser.unregister_argument(argument) abort
     unlet! self.alias[a:argument.alias]
   endif
 endfunction
+
 function! s:parser.add_argument(...) abort
   let argument = call('s:new_argument', a:000)
   call self.register_argument(argument)
@@ -391,8 +385,7 @@ function! s:parser.get_conflicted_arguments(name, options) abort
   if empty(conflicts)
     return []
   endif
-  let conflicts_pattern = printf('^\%%(%s\)$', join(conflicts, '\|'))
-  return filter(keys(a:options), 'v:val =~# conflicts_pattern')
+  return filter(keys(a:options), 'index(conflicts, v:val) >= 0')
 endfunction
 
 function! s:parser.get_superordinate_arguments(name, options) abort
@@ -400,8 +393,7 @@ function! s:parser.get_superordinate_arguments(name, options) abort
   if empty(superordinates)
     return []
   endif
-  let superordinates_pattern = printf('^\%%(%s\)$', join(superordinates, '\|'))
-  return filter(keys(a:options), 'v:val =~# superordinates_pattern')
+  return filter(keys(a:options), 'index(superordinates, v:val) >= 0')
 endfunction
 
 function! s:parser.get_missing_dependencies(name, options) abort
@@ -409,8 +401,7 @@ function! s:parser.get_missing_dependencies(name, options) abort
   if empty(dependencies)
     return []
   endif
-  let exists_pattern = printf('^\%%(%s\)$', join(keys(a:options), '\|'))
-  return filter(copy(dependencies), 'v:val !~# exists_pattern')
+  return filter(copy(dependencies), '!has_key(a:options, v:val)')
 endfunction
 
 function! s:parser.get_positional_arguments() abort
