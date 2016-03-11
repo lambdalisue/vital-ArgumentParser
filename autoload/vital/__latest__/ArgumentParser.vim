@@ -798,9 +798,8 @@ endfunction
 
 function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorpos, options) abort
   let candidates = []
-  let npositional = -1
+  let available_argument = {}
   for name in self.positional
-    let npositional += 1
     let argument = self.arguments[name]
     if has_key(a:options, name)
       continue
@@ -811,15 +810,11 @@ function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorp
     elseif !empty(argument.dependencies) && !empty(self.get_missing_dependencies(name, a:options))
       continue
     endif
+    let available_argument = argument
     break
   endfor
-  let npositional = npositional < 0 ? 0 : npositional
-  if !empty(a:arglead) && npositional > 0
-    let npositional -= 1
-  endif
-  let cpositional = get(self.arguments, get(self.positional, npositional), {})
-  if !empty(cpositional)
-    let candidates = cpositional.complete(
+  if !empty(available_argument)
+    let candidates = available_argument.complete(
           \ a:arglead, a:cmdline, a:cursorpos, a:options,
           \)
   endif
