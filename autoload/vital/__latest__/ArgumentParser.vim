@@ -231,18 +231,6 @@ function! s:new_argument(name, ...) abort
       call s:_throw(
             \ '"type" option cannot be ANY or SWITCH for a positional argument'
             \)
-    elseif !empty(argument.conflicts)
-      call s:_throw(
-            \ '"conflicts" option cannot be specified to a positional argument'
-            \)
-    elseif !empty(argument.dependencies)
-      call s:_throw(
-            \ '"dependencies" option cannot be specified to a positional argument'
-            \)
-    elseif !empty(argument.superordinates)
-      call s:_throw(
-            \ '"superordinates" option cannot be specified to a positional argument'
-            \)
     endif
   elseif !empty(argument.default) && argument.required
     call s:_throw(
@@ -410,7 +398,7 @@ function! s:parser.get_missing_dependencies(name, options) abort
     return []
   endif
   let exists_pattern = printf('\v^%%(%s)$', join(keys(a:options), '|'))
-  return filter(dependencies, 'v:val !~# exists_pattern')
+  return filter(copy(dependencies), 'v:val !~# exists_pattern')
 endfunction
 function! s:parser.get_positional_arguments() abort
   return deepcopy(self.positional)
@@ -774,6 +762,8 @@ function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, opti
       continue
     elseif !empty(argument.superordinates) && empty(self.get_superordinate_arguments(argument.name, a:options))
       continue
+    elseif !empty(argument.dependencies) && !empty(self.get_missing_dependencies(argument.name, a:options))
+      continue
     endif
     if '--' . argument.name =~# '^' . a:arglead && len(argument.name) > 1
       call add(candidates, '--' . argument.name)
@@ -789,12 +779,22 @@ function! s:parser._complete_optional_argument(arglead, cmdline, cursorpos, opti
 endfunction
 function! s:parser._complete_positional_argument_value(arglead, cmdline, cursorpos, options) abort
   let candidates = []
-  let npositional = 0
-  for argument in values(self.arguments)
-    if argument.positional && has_key(a:options, argument.name)
-      let npositional += 1
+  let npositional = -1
+  for name in self.positional
+    let npositional += 1
+    let argument = self.arguments[name]
+    if has_key(a:options, name)
+      continue
+    elseif !empty(argument.conflicts) && !empty(self.get_conflicted_arguments(name, a:options))
+      continue
+    elseif !empty(argument.superordinates) && empty(self.get_superordinate_arguments(name, a:options))
+      continue
+    elseif !empty(argument.dependencies) && !empty(self.get_missing_dependencies(name, a:options))
+      continue
     endif
+    break
   endfor
+  let npositional = npositional < 0 ? 0 : npositional
   if !empty(a:arglead) && npositional > 0
     let npositional -= 1
   endif

@@ -336,21 +336,6 @@ Describe ArgumentParser
       Throw /"type" option cannot be ANY or SWITCH for a positional argument/
             \ A.new_argument('foo', { 'type': A.types.switch })
     End
-    It throws an exception if "conflicts" option is specified to a positional argument
-      let A = s:A
-      Throw /"conflicts" option cannot be specified to a positional argument/
-            \ A.new_argument('foo', { 'conflicts': ['a'] })
-    End
-    It throws an exception if "dependencies" option is specified to a positional argument
-      let A = s:A
-      Throw /"dependencies" option cannot be specified to a positional argument/
-            \ A.new_argument('foo', { 'dependencies': ['a'] })
-    End
-    It throws an exception if "superordinates" option is specified to a positional argument
-      let A = s:A
-      Throw /"superordinates" option cannot be specified to a positional argument/
-            \ A.new_argument('foo', { 'superordinates': ['a'] })
-    End
     It throws an exception if "default" and "required" option is specified together
       let A = s:A
       Throw /"default" and "required" options cannot be specified together/
@@ -978,6 +963,9 @@ Describe ArgumentParser
         call parser.add_argument('--puyo', {
               \ 'conflicts': ['piyo'],
               \})
+        call parser.add_argument('positional', {
+              \ 'conflicts': ['piyo'],
+              \})
       End
       It deos nothing if no conflicts found
         let options = {
@@ -992,6 +980,14 @@ Describe ArgumentParser
               \ 'bar': 1,
               \}
         Throw /Argument "foo" conflicts with an argument "bar"/
+              \ parser._validate_conflicts(options)
+      End
+      It throws an exception if one of an argument conflict with another (positional)
+        let options = {
+              \ 'piyo': 1,
+              \ 'positional': '',
+              \}
+        Throw /Argument "positional" conflicts with an argument "piyo"/
               \ parser._validate_conflicts(options)
       End
     End
@@ -1010,6 +1006,9 @@ Describe ArgumentParser
         call parser.add_argument('--puyo', {
               \ 'superordinates': ['piyo'],
               \})
+        call parser.add_argument('positional', {
+              \ 'superordinates': ['piyo'],
+              \})
       End
       It does nothing if one of superordinates is specified
         let options = {
@@ -1026,6 +1025,15 @@ Describe ArgumentParser
               \ 'puyo': 1,
               \}
         Throw /No superordinate argument(s) of "hoge" is specified/
+              \ parser._validate_superordinates(options)
+      End
+      It throws an exception if no superordinate is specified (positional)
+        let options = {
+              \ 'hoge': 1,
+              \ 'puyo': 1,
+              \ 'positional': 'hello',
+              \}
+        Throw /No superordinate argument(s) of "positional" is specified/
               \ parser._validate_superordinates(options)
       End
     End
@@ -1223,6 +1231,7 @@ Describe ArgumentParser
         call parser.add_argument('--hoge', { 'conflicts': ['bar'] })
         call parser.add_argument('--piyo')
         call parser.add_argument('--puyo', { 'superordinates': ['piyo'] })
+        call parser.add_argument('--what', { 'dependencies': ['foo', 'bar'] })
         call parser.add_argument('hello')
       End
       It return all posible arguments
@@ -1265,6 +1274,18 @@ Describe ArgumentParser
         Assert Equals(
               \ sort(candidates),
               \ sort(['--foo', '--foobar', '-f', '--puyo', '--bar', '--hoge']),
+              \)
+
+        let candidates = parser._complete_optional_argument(
+              \ '-',
+              \ '-',
+              \ [],
+              \ { 'foo': 1, 'bar': 1 },
+              \)
+        " all dependencies are specified so what is showed
+        Assert Equals(
+              \ sort(candidates),
+              \ sort(['--foobar', '-f', '--piyo', '--what']),
               \)
       End
       It return eliminated arguments if a part of argument name is specified
@@ -1320,6 +1341,14 @@ Describe ArgumentParser
         let parser = s:A.new({ 'auto_help': 0 })
         call parser.add_argument('foo', { 'choices': ['aa', 'ab', 'ac', 'bb', 'bc', 'bd'] })
         call parser.add_argument('bar', { 'choices': ['e', 'f', 'g'] })
+        call parser.add_argument('--b1')
+        call parser.add_argument('--b2')
+        call parser.add_argument('--b31')
+        call parser.add_argument('--b32')
+        call parser.add_argument('a1', { 'conflicts': ['b1'], 'choices': ['a1'] })
+        call parser.add_argument('a2', { 'superordinates': ['b2'], 'choices': ['a2'] })
+        call parser.add_argument('a3', { 'dependencies': ['b31', 'b32'], 'choices': ['a3'] })
+        call parser.add_argument('terminal', { 'choices': ['terminal'] })
       End
       It return all possible values of a corresponding positional argument
         let candidates = parser._complete_positional_argument_value(
@@ -1355,6 +1384,73 @@ Describe ArgumentParser
               \ sort(candidates),
               \ sort(['bb', 'bc', 'bd']),
               \)
+      End
+      It skip positional argument when a conflicted option is specified
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e' },
+              \)
+        Assert Equals(sort(candidates), sort(['a1']))
+
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'b1': 1 },
+              \)
+        Assert Equals(sort(candidates), sort(['terminal']))
+      End
+      It skip positional argument when non of superordinate option is specified
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'a1': 'a1' },
+              \)
+        Assert Equals(sort(candidates), sort(['terminal']))
+
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'a1': 'a1', 'b2': 1 },
+              \)
+        Assert Equals(sort(candidates), sort(['a2']))
+      End
+      It skip positional argument when any of dependencies options is not specified
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'a1': 'a1', 'a2': 'a2' },
+              \)
+        Assert Equals(sort(candidates), sort(['terminal']), 'none')
+
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'a1': 'a1', 'a2': 'a2', 'b31': 1 },
+              \)
+        Assert Equals(sort(candidates), sort(['terminal']), 'b31')
+
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'a1': 'a1', 'a2': 'a2', 'b32': 1 },
+              \)
+        Assert Equals(sort(candidates), sort(['terminal']), 'b32')
+
+        let candidates = parser._complete_positional_argument_value(
+              \ '',
+              \ 'ArgumentParse ',
+              \ 15,
+              \ { 'foo': 'aa', 'bar': 'e', 'a1': 'a1', 'a2': 'a2', 'b31': 1, 'b32': 1 },
+              \)
+        Assert Equals(sort(candidates), sort(['a3']))
       End
     End
 
