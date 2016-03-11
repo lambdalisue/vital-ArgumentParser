@@ -2,11 +2,12 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 function! s:_vital_loaded(V) abort
-  let s:P = a:V.import('Prelude')
-  let s:D = a:V.import('Data.Dict')
-  let s:L = a:V.import('Data.List')
-  let s:H = a:V.import('System.Filepath')
+  let s:Prelude = a:V.import('Prelude')
+  let s:Dict = a:V.import('Data.Dict')
+  let s:List = a:V.import('Data.List')
+  let s:Path = a:V.import('System.Filepath')
 endfunction
+
 function! s:_vital_created(module) abort
   if !exists('s:const')
     let s:const = {}
@@ -20,16 +21,20 @@ function! s:_vital_created(module) abort
   endif
   call extend(a:module, s:const)
 endfunction
+
 function! s:_vital_depends() abort
   return ['Prelude', 'Data.Dict', 'Data.List', 'System.Filepath']
 endfunction
+
 function! s:_dummy() abort
 endfunction
+
 function! s:_throw(msg) abort
   throw printf('vital: ArgumentParser: %s', a:msg)
 endfunction
+
 function! s:_ensure_list(x) abort
-  return s:P.is_list(a:x) ? a:x : [a:x]
+  return s:Prelude.is_list(a:x) ? a:x : [a:x]
 endfunction
 
 " Public functions
@@ -90,7 +95,7 @@ function! s:new(...) abort
             \))
     endif
   endfor
-  let parser = extend(deepcopy(s:parser), s:D.pick(settings, [
+  let parser = extend(deepcopy(s:parser), s:Dict.pick(settings, [
         \ 'name',
         \ 'auto_help',
         \ 'complete_unknown',
@@ -104,7 +109,7 @@ function! s:new(...) abort
         \ 'unknown_description',
         \ 'complete_threshold',
         \]))
-  let parser.description = s:P.is_list(settings.description)
+  let parser.description = s:Prelude.is_list(settings.description)
         \ ? join(settings.description, "\n")
         \ : settings.description
   if parser.auto_help
@@ -134,7 +139,7 @@ function! s:new_argument(name, ...) abort
   elseif a:0 == 1
     " add_argument({name}, {description})
     " add_argument({name}, {options})
-    if s:P.is_string(a:1) || s:P.is_list(a:1)
+    if s:Prelude.is_string(a:1) || s:Prelude.is_list(a:1)
       let alias = ''
       let description = a:1
       let options = {}
@@ -146,11 +151,11 @@ function! s:new_argument(name, ...) abort
   elseif a:0 == 2
     " add_argument({name}, {alias}, {description})
     " add_argument({name}, {description}, {options})
-    if s:P.is_string(a:2) || s:P.is_list(a:2)
+    if s:Prelude.is_string(a:2) || s:Prelude.is_list(a:2)
       let alias = a:1
       let description = a:2
       let options = {}
-    elseif s:P.is_dict(a:2)
+    elseif s:Prelude.is_dict(a:2)
       let alias = ''
       let description = a:1
       let options = a:2
@@ -253,9 +258,9 @@ function! s:complete_dummy(arglead, cmdline, cursorpos, ...) dict abort
 endfunction
 function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort
   let root = expand(get(self, '__complete_files_root', '.'))
-  let root = s:H.realpath(s:H.remove_last_separator(root) . s:H.separator())
+  let root = s:Path.realpath(s:Path.remove_last_separator(root) . s:Path.separator())
   let candidates = split(
-        \ glob(s:H.join(root, a:arglead . '*'), 0),
+        \ glob(s:Path.join(root, a:arglead . '*'), 0),
         \ "\r\\?\n",
         \)
   " substitute 'root'
@@ -272,7 +277,7 @@ function! s:complete_files(arglead, cmdline, cursorpos, ...) dict abort
   endif
   call map(candidates, printf(
         \ 'isdirectory(v:val) ? v:val . "%s" : v:val',
-        \ s:H.path_separator(),
+        \ s:Path.path_separator(),
         \))
   return candidates
 endfunction
@@ -304,9 +309,9 @@ let s:argument = {
       \ 'superordinates': [],
       \}
 function! s:argument.get_choices(options) abort
-  if s:P.is_funcref(self.choices)
+  if s:Prelude.is_funcref(self.choices)
     let candidates = self.choices(deepcopy(a:options))
-  elseif s:P.is_list(self.choices)
+  elseif s:Prelude.is_list(self.choices)
     let candidates = self.choices
   else
     let candidates = []
@@ -412,9 +417,9 @@ endfunction
 
 function! s:parser.parse(bang, range, ...) abort
   let cmdline = get(a:000, 0, '')
-  let args = s:P.is_string(cmdline) ? s:splitargs(cmdline) : cmdline
+  let args = s:Prelude.is_string(cmdline) ? s:splitargs(cmdline) : cmdline
   let options = self._parse_args(args, extend({
-        \ '__bang__': s:P.is_string(a:bang) ? a:bang ==# '!' : a:bang,
+        \ '__bang__': s:Prelude.is_string(a:bang) ? a:bang ==# '!' : a:bang,
         \ '__range__': a:range,
         \}, get(a:000, 1, {})))
   call self._regulate_options(options)
@@ -569,17 +574,17 @@ function! s:parser._validate_types(options) abort
   for [name, value] in items(a:options)
     if name !~# '\v^__.*__$'
       let type = self.arguments[name].type
-      if type == s:const.types.value && s:P.is_number(value)
+      if type == s:const.types.value && s:Prelude.is_number(value)
         call s:_throw(printf(
               \ 'Argument "%s" is VALUE argument but no value is specified',
               \ name,
               \))
-      elseif type == s:const.types.multiple && s:P.is_number(value)
+      elseif type == s:const.types.multiple && s:Prelude.is_number(value)
         call s:_throw(printf(
               \ 'Argument "%s" is MULTIPLE argument but no value is specified',
               \ name,
               \))
-      elseif type == s:const.types.switch && s:P.is_string(value)
+      elseif type == s:const.types.switch && s:Prelude.is_string(value)
         call s:_throw(printf(
               \ 'Argument "%s" is SWITCH argument but "%s" is specified',
               \ name, value,
@@ -587,7 +592,7 @@ function! s:parser._validate_types(options) abort
       elseif type == s:const.types.choice
         let candidates = self.arguments[name].get_choices(a:options)
         let pattern = printf('\v^%%(%s)$', join(candidates, '|'))
-        if s:P.is_number(value)
+        if s:Prelude.is_number(value)
           call s:_throw(printf(
                 \ 'Argument "%s" is CHOICE argument but no value is specified',
                 \ name,
@@ -654,12 +659,12 @@ function! s:parser._validate_pattern(options) abort
     if name !~# '\v^__.*__$'
       let pattern = self.arguments[name].pattern
       if !empty(pattern)
-        if s:P.is_string(value) && value !~# pattern
+        if s:Prelude.is_string(value) && value !~# pattern
           call s:_throw(printf(
                 \ 'A value of argument "%s" does not follow a specified pattern "%s".',
                 \ name, pattern,
                 \))
-        elseif s:P.is_list(value)
+        elseif s:Prelude.is_list(value)
           for _value in value
             if _value !~# pattern
               call s:_throw(printf(
@@ -684,7 +689,7 @@ function! s:parser.complete(arglead, cmdline, cursorpos, ...) abort
         \)
   call self.hooks.pre_complete(options)
   if get(options, '__terminated__')
-    if s:P.is_funcref(get(self, 'complete_unknown'))
+    if s:Prelude.is_funcref(get(self, 'complete_unknown'))
       let candidates = self.complete_unknown(
             \ a:arglead,
             \ cmdline,
@@ -835,7 +840,7 @@ function! s:parser.help() abort
     endif
   endfor
   " find a length of the longest definition
-  let max_length = len(s:L.max_by(definitions.positional + definitions.optional, 'len(v:val)'))
+  let max_length = len(s:List.max_by(definitions.positional + definitions.optional, 'len(v:val)'))
   let buflines = []
   call add(buflines, printf(
         \ ':%s', join(filter([
@@ -850,7 +855,7 @@ function! s:parser.help() abort
   if !empty(self.positional)
     call add(buflines, '')
     call add(buflines, 'Positional arguments:')
-    for [definition, description] in s:L.zip(definitions.positional, descriptions.positional)
+    for [definition, description] in s:List.zip(definitions.positional, descriptions.positional)
       let _definitions = split(definition, "\n")
       let _descriptions = split(description, "\n")
       let n = max([len(_definitions), len(_descriptions)])
@@ -869,7 +874,7 @@ function! s:parser.help() abort
   endif
   call add(buflines, '')
   call add(buflines, 'Optional arguments:')
-  for [definition, description] in s:L.zip(definitions.optional, descriptions.optional)
+  for [definition, description] in s:List.zip(definitions.optional, descriptions.optional)
     let _definitions = split(definition, "\n")
     let _descriptions = split(description, "\n")
     let n = max([len(_definitions), len(_descriptions)])
