@@ -725,6 +725,21 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
       End
+      It correctly parse multiple positional arguments
+        call parser.add_argument('positional_multiple', { 'type': s:A.types.multiple })
+        let ret = parser._parse_args([
+              \ 'piyo', 'puyo', 'conflicts', 'c', 'b', 'a',
+              \])
+        let exp = {
+              \ '__unknown__': [],
+              \ '__args__': ['piyo', 'puyo', 'conflicts', 'c', 'b', 'a'],
+              \ 'conflicts': 'conflicts',
+              \ 'puyo': 'puyo',
+              \ 'piyo': 'piyo',
+              \ 'positional_multiple': ['c', 'b', 'a'],
+              \}
+        Assert Equals(ret, exp)
+      End
       It should skip positional argument assignment when the conflicted arguments are specified
         let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
         let exp = {
