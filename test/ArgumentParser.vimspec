@@ -558,12 +558,12 @@ Describe ArgumentParser
       Before
         let parser = s:A.new()
         let parser._ncalls = {
-              \ '_parse_args': 0,
+              \ 'parse_args': 0,
               \ '_regulate_options': 0,
               \ '_validate_options': 0,
               \}
-        function! parser._parse_args(...)
-          let self._ncalls._parse_args += 1
+        function! parser.parse_args(...)
+          let self._ncalls.parse_args += 1
           return {}
         endfunction
         function! parser._regulate_options(...)
@@ -573,10 +573,10 @@ Describe ArgumentParser
           let self._ncalls._validate_options += 1
         endfunction
       End
-      It call '_parse_args'
-        let ncalls = parser._ncalls._parse_args
+      It call 'parse_args'
+        let ncalls = parser._ncalls.parse_args
         call parser.parse('', {})
-        Assert Equals(parser._ncalls._parse_args, ncalls + 1)
+        Assert Equals(parser._ncalls.parse_args, ncalls + 1)
       End
       It call '_regulate_options'
         let ncalls = parser._ncalls._regulate_options
@@ -589,7 +589,7 @@ Describe ArgumentParser
         Assert Equals(parser._ncalls._validate_options, ncalls + 1)
       End
     End
-    Context ._parse_args({args}[, {options}])
+    Context .parse_args({args}[, {options}])
       Before
         let parser = s:A.new()
         call parser.add_argument('--foo', { 'deniable': 1 })
@@ -610,7 +610,7 @@ Describe ArgumentParser
         call parser.add_argument('dependencies', { 'dependencies': ['a31', 'a32'] })
       End
       It correctly parse optional arguments (list)
-        let ret = parser._parse_args(['--foo', '-b', '-H=hoge'])
+        let ret = parser.parse_args(['--foo', '-b', '-H=hoge'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--foo', '-b', '-H=hoge'],
@@ -621,7 +621,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly parse positional arguments (list)
-        let ret = parser._parse_args(['hi', '"hello world"'])
+        let ret = parser.parse_args(['hi', '"hello world"'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['hi', '"hello world"'],
@@ -631,7 +631,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly parse arguments (list)
-        let ret = parser._parse_args(['--a1', 'hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
+        let ret = parser.parse_args(['--a1', 'hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
         let exp = {
               \ '__unknown__': ['--unknown', 'unk'],
               \ '__args__': ['--a1', 'hi', '--foo', '-b', '"hello world"', '--unknown', 'unk'],
@@ -645,7 +645,7 @@ Describe ArgumentParser
       End
       It correctly parse '--foo foo' value assignment if enable_positional_assign is defined (list)
         let parser.enable_positional_assign = 1
-        let ret = parser._parse_args(['--foo', 'bar'])
+        let ret = parser.parse_args(['--foo', 'bar'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--foo', 'bar'],
@@ -654,7 +654,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly parse '--no-foo' if the argument is deniable (list)
-        let ret = parser._parse_args(['--no-foo'])
+        let ret = parser.parse_args(['--no-foo'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--no-foo'],
@@ -663,7 +663,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It abort parse when a terminal argument is found (list)
-        let ret = parser._parse_args(['hi', '--terminal', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
+        let ret = parser.parse_args(['hi', '--terminal', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
         let exp = {
               \ '__terminated__': 1,
               \ '__unknown__': ['--foo', '-b', '"hello world"', '--unknown', 'unk'],
@@ -673,7 +673,7 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
 
-        let ret = parser._parse_args(['hi', '--', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
+        let ret = parser.parse_args(['hi', '--', '--foo', '-b', '"hello world"', '--unknown', 'unk'])
         let exp = {
               \ '__terminated__': 1,
               \ '__unknown__': ['--foo', '-b', '"hello world"', '--unknown', 'unk'],
@@ -683,7 +683,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly parse a partial input like '--foo -'
-        let ret = parser._parse_args(['--foo', '-'])
+        let ret = parser.parse_args(['--foo', '-'])
         let exp = {
               \ '__unknown__': ['-'],
               \ '__args__': ['--foo', '-'],
@@ -692,7 +692,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly apply 'on_default' value when no value is specified
-        let ret = parser._parse_args(['--on_default'])
+        let ret = parser.parse_args(['--on_default'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--on_default'],
@@ -701,7 +701,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It correctly parse multiple optional arguments (list)
-        let ret = parser._parse_args([
+        let ret = parser.parse_args([
               \ '--multiple=c', '--foo', '--multiple=b', '-H=hoge', '--multiple=a'
               \])
         let exp = {
@@ -715,7 +715,7 @@ Describe ArgumentParser
       End
       It correctly parse multiple optional arguments ('--multiple foo' type)
         let parser.enable_positional_assign = 1
-        let ret = parser._parse_args([
+        let ret = parser.parse_args([
               \ '--multiple', 'c', '--multiple', 'b', '--multiple', 'a',
               \])
         let exp = {
@@ -727,7 +727,7 @@ Describe ArgumentParser
       End
       It correctly parse multiple positional arguments
         call parser.add_argument('positional_multiple', { 'type': s:A.types.multiple })
-        let ret = parser._parse_args([
+        let ret = parser.parse_args([
               \ 'piyo', 'puyo', 'conflicts', 'c', 'b', 'a',
               \])
         let exp = {
@@ -741,7 +741,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It should skip positional argument assignment when the conflicted arguments are specified
-        let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': ['c'],
               \ '__args__': ['--a1', 'a', 'b', 'c'],
@@ -751,7 +751,7 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
 
-        let ret = parser._parse_args(['a', 'b', 'c'])
+        let ret = parser.parse_args(['a', 'b', 'c'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['a', 'b', 'c'],
@@ -762,7 +762,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It should skip positional argument assignment when the non of superordinates is specified
-        let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': ['c'],
               \ '__args__': ['--a1', 'a', 'b', 'c'],
@@ -772,7 +772,7 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
 
-        let ret = parser._parse_args(['--a1', '--a21', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', '--a21', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--a1', '--a21', 'a', 'b', 'c'],
@@ -785,7 +785,7 @@ Describe ArgumentParser
         Assert Equals(ret, exp)
       End
       It should skip positional argument assignment when the one of dependencies is not specified
-        let ret = parser._parse_args(['--a1', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': ['c'],
               \ '__args__': ['--a1', 'a', 'b', 'c'],
@@ -795,7 +795,7 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
 
-        let ret = parser._parse_args(['--a1', '--a31', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', '--a31', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': ['c'],
               \ '__args__': ['--a1', '--a31', 'a', 'b', 'c'],
@@ -806,7 +806,7 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
 
-        let ret = parser._parse_args(['--a1', '--a32', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', '--a32', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': ['c'],
               \ '__args__': ['--a1', '--a32', 'a', 'b', 'c'],
@@ -817,7 +817,7 @@ Describe ArgumentParser
               \}
         Assert Equals(ret, exp)
 
-        let ret = parser._parse_args(['--a1', '--a31', '--a32', 'a', 'b', 'c'])
+        let ret = parser.parse_args(['--a1', '--a31', '--a32', 'a', 'b', 'c'])
         let exp = {
               \ '__unknown__': [],
               \ '__args__': ['--a1', '--a31', '--a32', 'a', 'b', 'c'],
@@ -1231,14 +1231,14 @@ Describe ArgumentParser
         call parser.add_argument('good')
         call parser.add_argument('bye')
         let parser._ncalls = {
-              \ '_parse_args': 0,
+              \ 'parse_args': 0,
               \ '_complete_unknown': 0,
               \ '_complete_optional_argument_value': 0,
               \ '_complete_optional_argument': 0,
               \ '_complete_positional_argument_value': 0,
               \}
-        function! parser._parse_args(...)
-          let self._ncalls._parse_args += 1
+        function! parser.parse_args(...)
+          let self._ncalls.parse_args += 1
           return {}
         endfunction
         function! parser.complete_unknown(...)
@@ -1258,10 +1258,10 @@ Describe ArgumentParser
           return ['p', 'q', 'r', 's', 't']
         endfunction
       End
-      It call '_parse_args'
-        let ncalls = parser._ncalls._parse_args
+      It call 'parse_args'
+        let ncalls = parser._ncalls.parse_args
         call parser.complete('--foo=', '--foo=', [], {})
-        Assert Equals(parser._ncalls._parse_args, ncalls + 1)
+        Assert Equals(parser._ncalls.parse_args, ncalls + 1)
       End
       It call '_complete_optional_argument_value' if '--foo=' is specified
         Assert Equals(parser._ncalls._complete_optional_argument_value, 0)

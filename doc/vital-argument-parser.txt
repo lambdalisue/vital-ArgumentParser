@@ -510,6 +510,28 @@ Parser.parse({bang}, {range}[, {q-args}, {options}])
 
 	See |Vital.ArgumentParser-usage| for usage.
 
+			*Vital.ArgumentParser-instance.parse_args()*
+Parser.parse_args({args}[, {options}])
+	
+	Parse a |List| {args} and return a |Dictionary|.
+	Note that the return |Dictionary| won't has '__bang__' or '__raneg__'
+	attributes like |Vital.ArgumentParser-instance.parse()|.
+
+	{args}
+	A |List| of arguments. Use |Vital.ArgumentParser.splitargs()| to make
+	this |List|.
+
+	The return value contains all parsed arguments and the following
+	special properties
+
+		'__args__'
+		A |List| of arguments specified.
+
+		'__unknown__'
+		A |List| of arguments which had not parsed.
+
+	See |Vital.ArgumentParser-instance.parse()| as well.
+
 			*Vital.ArgumentParser-instance.complete()*
 Parser.complete({arglead}, {cmdline}, {cursorpos}[, {options}])
 
