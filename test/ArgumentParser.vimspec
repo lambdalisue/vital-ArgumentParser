@@ -50,6 +50,16 @@ Describe ArgumentParser
       let exp = ['foo="bar"', "hoge='piyo'"]
       Assert Equals(ret, exp)
     End
+    It return ['foo bar hoge' ] for 'foo\ bar\ hoge'
+      let ret = s:A.splitargs('foo\ bar\ hoge')
+      let exp = ['foo\ bar\ hoge']
+      Assert Equals(ret, exp)
+    End
+    It return ['foo bar\ ' 'hoge' ] for 'foo\ bar\  hoge'
+      let ret = s:A.splitargs('foo\ bar\  hoge')
+      let exp = ['foo\ bar\ ', 'hoge']
+      Assert Equals(ret, exp)
+    End
   End
   Context .strip_quotes({str})
     It return 'foo bar' for '"foo bar"'
